@@ -1,0 +1,16 @@
+(executable
+ (public_name gas_estimator.main)
+ (name main)
+ (modules main sorted_list)
+ (preprocess
+  (pps lwt_ppx ppx_deriving_encoding ppx_deriving_arg))
+ (libraries common commands efunc lwt_ppx lwt.unix yojson ez_api.ws_cohttp))
+
+(library
+ (public_name gas_estimator.commands)
+ (name commands)
+ (modules cmd_alchemy cmd_vanilla)
+ (wrapped false)
+ (preprocess
+  (pps lwt_ppx ppx_deriving_encoding ppx_deriving_arg))
+ (libraries common version lwt_ppx lwt.unix))

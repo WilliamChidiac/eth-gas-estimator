@@ -1,0 +1,14 @@
+(library
+ (public_name gas_estimator.common)
+ (name common)
+ (modules common_types constant utilities)
+ (wrapped false)
+ (preprocess
+  (pps lwt_ppx ppx_deriving_encoding ppx_deriving_arg))
+ (libraries efunc version lwt_ppx lwt.unix yojson ez_api.ws_cohttp))
+
+(library
+ (public_name gas_estimator.version)
+ (name version)
+ (wrapped false)
+ (modules version))
