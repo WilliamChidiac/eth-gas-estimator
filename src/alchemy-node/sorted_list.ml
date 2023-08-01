@@ -3,8 +3,6 @@ open Utilities
 open Common_types
 open Constant
 
-exception Tx_type_undefined of string
-
 type 'a tx_pool = {
   pending : (transaction * int) list ref;
   blacklist : (address, bint * int) Hashtbl.t;
@@ -26,30 +24,18 @@ let empty =
 
 let mempool = empty
 
-(**calculate the priority fee of a transaction at a certain time.
-  for each type of transaction (0, 1, 2) there is a different method to calculate the priority fee.
-  however type 0 and type 1 uses both the same technic (but more research should be done on type 1 )
-    note that the returned value should not be stored since it varies depending on the base fees.*)
-let calc_priority_fee ?(bf = !(mempool.current_base_fee)) tx =
-  match tx.typ with
-  | None -> 0.
-  | Some 0 | Some 1 -> bz_to_float tx.gas_price -. !(mempool.current_base_fee)
-  | Some 2 ->
-    let a_mpfpg = bzOption_to_float tx.max_priority_fee_per_gas in
-    let a_mpfg = bzOption_to_float tx.max_fee_per_gas in
-    min a_mpfpg (a_mpfg -. !(mempool.current_base_fee))
-  | Some x ->
-    raise
-      (Tx_type_undefined (Printf.sprintf "Unknown type of transaction : %d" x))
+let calc_priority_fee ?(bf = !(mempool.current_base_fee)) = calc_priority_fee bf
 
-let compare_by_priority_fee ?(bf = !(mempool.current_base_fee)) a b =
-  compare (calc_priority_fee ~bf b) (calc_priority_fee ~bf a)
+let compare_by_priority_fee a b =
+  let x = compare (calc_priority_fee b) (calc_priority_fee a) in
+  if x = 0 then
+    compare b.tx_hash a.tx_hash
+  else
+    x
 
-let sort_by comp mempool =
-  List.sort (fun a b -> comp (fst a) (fst b)) !(mempool.pending)
+let sort_by comp list = List.sort (fun a b -> comp (fst a) (fst b)) list
 
-let sort_by_priority_fee ?(bf = !(mempool.current_base_fee)) mempool =
-  sort_by (compare_by_priority_fee ~bf) mempool
+let sort_by_priority_fee list = sort_by compare_by_priority_fee list
 
 (**add tx in sroted structure by Priority fee*)
 let add_tx tx mempool =

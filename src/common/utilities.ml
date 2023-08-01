@@ -1,13 +1,15 @@
 open Eth
 open Common_types
 
+exception Tx_type_undefined of string
+
 (**conversion functions*)
 let bzOption_to_float ?(def = Z.of_int 0) b =
   Z.to_float (Option.value ~default:def b) /. 1000000000.
 
 let bz_to_float b = Z.to_float b /. 1000000000.
 
-let print_trans (t : transaction) =
+let print_trans (t : transaction) base_fee =
   Format.eprintf
     "transaction nonce: %d\n\
      gas: %d\n\
@@ -19,9 +21,9 @@ let print_trans (t : transaction) =
      Transaction Index: %d\n\n\n\
      @."
     t.tx_nonce t.gas
-    ((Z.to_float t.gas_price /. 1000000000.) -. !Constant.current_base_fee)
+    ((Z.to_float t.gas_price /. 1000000000.) -. base_fee)
     (Z.to_float t.gas_price /. 1000000000.)
-    !Constant.current_base_fee
+    base_fee
     (Z.to_float (Option.value ~default:(Z.of_int 0) t.max_fee_per_gas)
     /. 1000000000.)
     (Z.to_float (Option.value ~default:(Z.of_int 0) t.max_priority_fee_per_gas)
@@ -46,6 +48,22 @@ let newBaseFee (bf : baseFee) =
      *. ((gas -. Constant.estimate) /. Constant.estimate *. Constant.max_coeff)
   )
   /. 1000000000.
+
+(**calculate the priority fee of a transaction at a certain time.
+  for each type of transaction (0, 1, 2) there is a different method to calculate the priority fee.
+  however type 0 and type 1 uses both the same technic (but more research should be done on type 1 )
+    note that the returned value should not be stored since it varies depending on the base fees.*)
+let calc_priority_fee bf tx =
+  match tx.typ with
+  | None -> 0.
+  | Some 0 | Some 1 -> bz_to_float tx.gas_price -. bf
+  | Some 2 ->
+    let a_mpfpg = bzOption_to_float tx.max_priority_fee_per_gas in
+    let a_mpfg = bzOption_to_float tx.max_fee_per_gas in
+    min a_mpfpg (a_mpfg -. bf)
+  | Some x ->
+    raise
+      (Tx_type_undefined (Printf.sprintf "Unknown type of transaction : %d" x))
 
 let set_verbose v =
   begin
