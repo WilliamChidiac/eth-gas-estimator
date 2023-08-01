@@ -6,8 +6,3 @@
  (preprocess
   (pps lwt_ppx ppx_deriving_encoding ppx_deriving_arg))
  (libraries efunc version lwt_ppx lwt.unix yojson ez_api.ws_cohttp common))
-
-(env
- (_
-  (flags
-   (:standard -w +a-4-41-44-45-48-70 -warn-error -a))))

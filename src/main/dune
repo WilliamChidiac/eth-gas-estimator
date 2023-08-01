@@ -22,8 +22,3 @@
  (preprocess
   (pps lwt_ppx ppx_deriving_encoding ppx_deriving_arg))
  (libraries alchemy common version lwt_ppx lwt.unix))
-
-(env
- (_
-  (flags
-   (:standard -w +a-4-41-44-45-48-70 -warn-error -a))))

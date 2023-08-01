@@ -1,10 +1,8 @@
 open Lwt.Infix
-open Eth
 open Common_types
 open Sorted_list
 open Utilities
 open Constant
-open Snapshot
 
 (*websocket url*)
 let uri = "wss://eth-mainnet.g.alchemy.com/v2/ytvWudRFU7i34JtwGZqu9MAynm_sUhK1"
