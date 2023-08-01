@@ -49,33 +49,6 @@ type requests_params = {
 }
 [@@deriving encoding { ignore }]
 
-type request_no_params = {
-  rpc_version : string; [@key "jsonrpc"]
-  rq_id : int; [@key "id"]
-  rq_method : string; [@key "method"]
-}
-[@@deriving encoding]
-
-let alchemy_subscription meth =
-  {
-    rpc_version = "2.0";
-    rq_id = 1;
-    rq_method = "eth_subscribe";
-    rq_params = [meth];
-  }
-  |> EzEncoding.construct requests_params_enc
-
-let get_account_nonce acc_hash id =
-  let s = EzEncoding.construct address_enc acc_hash in
-  let result = String.sub s 1 (String.length s - 2) in
-  {
-    rpc_version = "2.0";
-    rq_id = id;
-    rq_method = "eth_getTransactionCount";
-    rq_params = [result; "latest"];
-  }
-  |> EzEncoding.construct requests_params_enc
-
 (*response messages*)
 
 (*Connection complete messages*)
@@ -90,6 +63,8 @@ type conn = {
 type baseFee = {
   base_fee : string; [@key "baseFeePerGas"]
   gas_used : string; [@key "gasUsed"]
+  timestamp : bint64; [@key "timestamp"]
+  number : bint; [@key "number"]
 }
 [@@deriving encoding { ignore }]
 
