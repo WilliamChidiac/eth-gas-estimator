@@ -7,7 +7,6 @@ let main conf =
     Utilities.log ~verbosity:Common_types.Trace "Main.main > Vanilla@." ;
     Cmd_vanilla.cmd_vanilla ~verbosity vanilla_options
   | Alchemy alchemy_options ->
-    (* let token = Gitlab.Token.AccessToken "glpat--u6mxQg_uuWiyEX3p-DM" in *)
     Utilities.log ~verbosity:Common_types.Trace "Main.main > Alchemy@." ;
     Cmd_alchemy.cmd_alchemy ~verbosity alchemy_options
 
