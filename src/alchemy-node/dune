@@ -1,7 +1,7 @@
 (library
  (public_name gas_estimator.alchemy-node)
  (name alchemy)
- (modules alchemy_request )
+ (modules alchemy_request sorted_list)
  (wrapped false)
  (preprocess
   (pps lwt_ppx ppx_deriving_encoding ppx_deriving_arg))
