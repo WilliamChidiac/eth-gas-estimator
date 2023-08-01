@@ -4,6 +4,7 @@ open Common_types
 open Sorted_list
 open Utilities
 open Constant
+open Snapshot
 
 (*websocket url*)
 let uri = "wss://eth-mainnet.g.alchemy.com/v2/ytvWudRFU7i34JtwGZqu9MAynm_sUhK1"
@@ -32,31 +33,33 @@ let request_new_block = alchemy_subscription "newHeads"
 
 (**this function will be called every time we receive a notification. the receiveed message will then be treated depending on it's type.*)
 let react (_w : string EzWs.action) s =
-  Lwt.catch
+  Lwt.dont_wait
     (fun () ->
       Lwt.return (response_from_json s) >>= fun resp ->
       match resp with
       | Connection _ ->
         Format.eprintf "Connection complete.@." ;
-        Lwt.return (Ok ()) (*connected messages*)
+        Lwt.return () (*connected messages*)
       | Data d -> (
         match d with
-        | Mined_transaction t ->
-          Sorted_list.remove_tx t.tx_tx Sorted_list.mempool ;
-          Lwt.return (Ok ())
-          (*if we received a mined transaction, we'll remove it from the list of pending transactioin*)
         | Pending_transaction t ->
           Sorted_list.process_pending_tx t Sorted_list.mempool ;
-          Lwt.return (Ok ())
-          (*if we received a pending trasnaction, we'll add it to the list o pending*)
+          Lwt.return ()
+        | Mined_transaction t ->
+          Snapshot.snapshot_mined t.tx_tx ;
+          Sorted_list.remove_tx t.tx_tx Sorted_list.mempool ;
+          Lwt.return ()
         | Base_fee b ->
+          Snapshot.erase_block () ;
+          Snapshot.snapshot_header b ;
           Sorted_list.update_mempool Sorted_list.mempool b ;
-          Lwt.return (Ok ()))
-      (*if we received a block header, we'll be updating the base fee of the new upcoming block*))
-    (fun exn ->
-      Format.eprintf "exn:%s\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n@."
-        (Printexc.to_string exn) ;
-      Lwt.return (Ok ()))
+          let time = Unix.gettimeofday () -. Int64.to_float b.timestamp in
+          Lwt_unix.sleep (12. -. time) >>= fun _ ->
+          Format.eprintf "incr snapshot id@." ;
+          Snapshot.snapshot_state !(Sorted_list.mempool.pending) ;
+          Lwt.return ()))
+    (fun exn -> Format.eprintf "exn:%s\n\n@." (Printexc.to_string exn)) ;
+  Lwt.return (Ok ())
 
 let error _ _ = failwith "error"
 
@@ -64,9 +67,13 @@ let error _ _ = failwith "error"
   it uses the list of pending to calculate the probabilities of inclusion in the new block depending on the priority fee
   by sorting this list in a descending order of the priority fees*)
 let rec refresh period =
-  if true then
+  if true then (
+    if !Snapshot.snap_shot_id > 6 then
+      Snapshot.print_compare (!Snapshot.snap_shot_id - 2) ~index:false
+    else
+      () ;
     Lwt_unix.sleep period >>= fun _ -> refresh period
-  else
+  ) else
     Lwt.return (Ok ())
 
 let request () =
