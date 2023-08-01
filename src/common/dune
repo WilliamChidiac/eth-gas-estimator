@@ -1,7 +1,7 @@
 (library
  (public_name gas_estimator.common)
  (name common)
- (modules common_types constant utilities)
+ (modules common_types constant utilities sorted_list)
  (wrapped false)
  (preprocess
   (pps lwt_ppx ppx_deriving_encoding ppx_deriving_arg))
@@ -12,3 +12,9 @@
  (name version)
  (wrapped false)
  (modules version))
+
+
+(env
+ (_
+  (flags
+   (:standard -w +a-4-41-44-45-48-70 -warn-error -a))))

@@ -1,6 +1,7 @@
 open Eth
 open Utilities
 open Common_types
+open Constant
 
 type 'a sorted_structure = 'a list
 
