@@ -54,6 +54,8 @@ let print_compare ?(index = false) key =
   let pending_priority = sort_by_priority_fee bf pending in
   let accepted_priority = sort_by_priority_fee bf accepted in
 
+  let intersection = ref 0 in
+  let bar = ref 0 in
   let accepted_tx_index =
     List.sort
       (fun a b -> compare a.transaction_index b.transaction_index)
@@ -61,7 +63,7 @@ let print_compare ?(index = false) key =
 
   let rec affiche_priority pending accepted index_pending index_accept =
     match (pending, accepted) with
-    | [], _ | _, [] -> ()
+    | [], _ | _, [] -> bar := index_accept + 1
     | pending_tx :: sub_pending, accepted_tx :: sub_accepted ->
       let p_pf = calc_priority_fee bf pending_tx in
       let a_pf = calc_priority_fee bf accepted_tx in
@@ -73,6 +75,7 @@ let print_compare ?(index = false) key =
            ---------------------------------------------------@."
           index_pending index_accept p_pf a_pf
           (Option.value ~default:(-1) accepted_tx.transaction_index) ;
+          intersection := !intersection + 1;
         affiche_priority sub_pending sub_accepted (index_pending + 1)
           (index_accept + 1)
       ) else if p_pf > a_pf then (
@@ -126,7 +129,9 @@ let print_compare ?(index = false) key =
             --------------------------------------------------------------------------------------@."
            (EzEncoding.construct b_enc tx.tx_hash)
            a_pf
-           (Option.value ~default:(-1) tx.transaction_index)
+           (Option.value ~default:(-1) tx.transaction_index);
+       intersection := !intersection + 1
+      
        with Not_found ->
          Format.eprintf
            "|destination   |           | %s |\n\
@@ -145,14 +150,13 @@ let print_compare ?(index = false) key =
       | e :: l_aux ->
         if gu > podium then
           let x = calc_priority_fee bf e in
-          Format.eprintf "estimation = %f\nindex of estimation = %d\n@."
-            (if x < 0. then
-               0.1
-             else
-               x)
+          Format.eprintf "top %d de gas: \n\
+          estimation = %f\nindex of estimation = %d\n@."
+            podium x
             index
         else
-          calc_tests l_aux (gu + e.gas) (index + 1) in
+          let fuel = if e.gas < Constant.max_gu then e.gas else Constant.max_gu in
+          calc_tests l_aux (gu + fuel) (index + 1) in
     calc_tests pending_l 0 0 in
 
   Format.eprintf
@@ -170,10 +174,13 @@ let print_compare ?(index = false) key =
      base fee = %f \n\
      gas used = %d \n\
      mempool length = %d \n\
+     tx in mempool and block = %d \n\
+     tx in block but not in mempool = %d \n\
      @."
     block_number bf
     (int_of_string block_header.gas_used)
-    (List.length pending) ;
+    (List.length pending) !intersection
+    !bar;
   calc_estimation 10000000 pending_priority ;
   calc_estimation 15000000 pending_priority ;
   calc_estimation 20000000 pending_priority ;
