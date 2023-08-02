@@ -1,0 +1,8 @@
+(library
+ (public_name gas_estimator.alchemy-node)
+ (name alchemy)
+ (modules alchemy_request sorted_list snapshot)
+ (wrapped false)
+ (preprocess
+  (pps lwt_ppx ppx_deriving_encoding ppx_deriving_arg))
+ (libraries efunc version lwt_ppx lwt.unix yojson ez_api.ws_cohttp common))

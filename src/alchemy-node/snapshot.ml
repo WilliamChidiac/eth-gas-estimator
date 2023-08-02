@@ -1,0 +1,180 @@
+open Eth
+open Common_types
+open Utilities
+
+let snap_shot_id : int ref = ref 1
+
+let snap_shot_pending : (bint, transaction list) Hashtbl.t = Hashtbl.create 10
+
+let snap_shot_block : (bint, transaction list) Hashtbl.t = Hashtbl.create 10
+
+let snap_shot_block_header = Hashtbl.create 10
+
+let latest_validated_txs : transaction list ref = ref []
+
+let snapshot_mined tx = latest_validated_txs := tx :: !latest_validated_txs
+
+let erase_block () = latest_validated_txs := []
+
+let snapshot_block () =
+  Hashtbl.add snap_shot_block !snap_shot_id !latest_validated_txs
+
+let snapshot_header b = Hashtbl.add snap_shot_block_header !snap_shot_id b
+
+let incr_id () = snap_shot_id := 1 + !snap_shot_id
+
+let snapshot_mempool mempool =
+  let l = ref [] in
+  List.iter (fun (tx, _nonce) -> l := tx :: !l) mempool ;
+  Hashtbl.add snap_shot_pending !snap_shot_id !l
+
+let snapshot_state mempool =
+  snapshot_block () ;
+  incr_id () ;
+  snapshot_mempool mempool
+
+let compare_by_priority_fee bf a b =
+  let x = compare (calc_priority_fee bf b) (calc_priority_fee bf a) in
+  if x = 0 then
+    compare b.tx_hash a.tx_hash
+  else
+    x
+
+let sort_by comp list = List.sort (fun a b -> comp a b) list
+
+let sort_by_priority_fee bf list = sort_by (compare_by_priority_fee bf) list
+
+let print_compare ?(index = false) key =
+  let pending = Hashtbl.find snap_shot_pending key in
+  let accepted = Hashtbl.find snap_shot_block key in
+  let block_header = Hashtbl.find snap_shot_block_header key in
+  let block_number = block_header.number in
+  let bf = float_of_string block_header.base_fee /. 1000000000. in
+
+  let pending_priority = sort_by_priority_fee bf pending in
+  let accepted_priority = sort_by_priority_fee bf accepted in
+
+  let accepted_tx_index =
+    List.sort
+      (fun a b -> compare a.transaction_index b.transaction_index)
+      accepted in
+
+  let rec affiche_priority pending accepted index_pending index_accept =
+    match (pending, accepted) with
+    | [], _ | _, [] -> ()
+    | pending_tx :: sub_pending, accepted_tx :: sub_accepted ->
+      let p_pf = calc_priority_fee bf pending_tx in
+      let a_pf = calc_priority_fee bf accepted_tx in
+      if accepted_tx.tx_hash = pending_tx.tx_hash then (
+        Format.eprintf
+          "|index in list |    %d    |    %d    | \n\
+           |priority fees | %f | %f | \n\
+           |transaction id|          |    %d    | \n\
+           ---------------------------------------------------@."
+          index_pending index_accept p_pf a_pf
+          (Option.value ~default:(-1) accepted_tx.transaction_index) ;
+        affiche_priority sub_pending sub_accepted (index_pending + 1)
+          (index_accept + 1)
+      ) else if p_pf > a_pf then (
+        Format.eprintf
+          "|index in list |    %d    |           | \n\
+           |priority fees | %f |           | \n\
+           |hash          | %s | \n\
+           ---------------------------------------------------@."
+          index_pending p_pf
+          (EzEncoding.construct b_enc pending_tx.tx_hash) ;
+        affiche_priority sub_pending accepted (index_pending + 1) index_accept
+      ) else if p_pf < a_pf then (
+        Format.eprintf
+          "|index in list |          |    %d    | \n\
+           |priority fees |          | %f | \n\
+           |transaction_id|          |    %d    | \n\
+           ---------------------------------------------------@."
+          index_accept a_pf
+          (Option.value ~default:(-1) accepted_tx.transaction_index) ;
+        affiche_priority pending sub_accepted index_pending (index_accept + 1)
+      ) else if compare pending_tx.tx_hash accepted_tx.tx_hash > 0 then (
+        Format.eprintf
+          "|index in list |    %d    |           | \n\
+           |priority fees | %f |           | \n\
+           |hash          | %s | \n\
+           ---------------------------------------------------@."
+          index_pending p_pf
+          (EzEncoding.construct b_enc pending_tx.tx_hash) ;
+        affiche_priority sub_pending accepted (index_pending + 1) index_accept
+      ) else (
+        Format.eprintf
+          "|index in list |          |    %d    | \n\
+           |priority fees |          | %f | \n\
+           |transaction_id|          |    %d    | \n\
+           ---------------------------------------------------@."
+          index_accept a_pf
+          (Option.value ~default:(-1) accepted_tx.transaction_index) ;
+        affiche_priority pending sub_accepted index_pending (index_accept + 1)
+      ) in
+  let rec affiche_tx_index accepted =
+    match accepted with
+    | [] -> ()
+    | tx :: sub_accepted ->
+      (let a_pf = calc_priority_fee bf tx in
+       try
+         let _ = List.find (fun t -> t.tx_hash = tx.tx_hash) pending_priority in
+         Format.eprintf
+           "|destination   |  \\    /   | %s | \n\
+            |priority fees |   \\  /    | %f |       \n\
+            |transaction_id|    \\/     |    %d    | \n\
+            --------------------------------------------------------------------------------------@."
+           (EzEncoding.construct b_enc tx.tx_hash)
+           a_pf
+           (Option.value ~default:(-1) tx.transaction_index)
+       with Not_found ->
+         Format.eprintf
+           "|destination   |           | %s |\n\
+            |priority fees |           | %f |       \n\
+            |transaction_id|           |    %d    | \n\
+            --------------------------------------------------------------------------------------@."
+           (EzEncoding.construct b_enc tx.tx_hash)
+           a_pf
+           (Option.value ~default:(-1) tx.transaction_index)) ;
+      affiche_tx_index sub_accepted in
+
+  let calc_estimation podium pending_l =
+    let rec calc_tests pending_list gu index =
+      match pending_list with
+      | [] -> Format.eprintf "nombre total de gas: %d\n@." gu
+      | e :: l_aux ->
+        if gu > podium then
+          let x = calc_priority_fee bf e in
+          Format.eprintf "estimation = %f\nindex of estimation = %d\n@."
+            (if x < 0. then
+               0.1
+             else
+               x)
+            index
+        else
+          calc_tests l_aux (gu + e.gas) (index + 1) in
+    calc_tests pending_l 0 0 in
+
+  Format.eprintf
+    "block number = %d \n\
+     base fee = %f \n\
+     gas used = %d \n\
+     |              |Pending txs|accepted txs| @." block_number bf
+    (int_of_string block_header.gas_used) ;
+  if index = false then
+    affiche_priority pending_priority accepted_priority 0 0
+  else
+    affiche_tx_index accepted_tx_index ;
+  Format.eprintf
+    "block number = %d \n\
+     base fee = %f \n\
+     gas used = %d \n\
+     mempool length = %d \n\
+     @."
+    block_number bf
+    (int_of_string block_header.gas_used)
+    (List.length pending) ;
+  calc_estimation 10000000 pending_priority ;
+  calc_estimation 15000000 pending_priority ;
+  calc_estimation 20000000 pending_priority ;
+  calc_estimation 25000000 pending_priority

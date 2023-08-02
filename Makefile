@@ -38,3 +38,6 @@ version:
 
 clean:
 	$(BUILD) clean
+
+alchemy: all
+	./$(BIN_DIR)/$(BINARY) alchemy-mode

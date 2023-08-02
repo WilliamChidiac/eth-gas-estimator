@@ -1,3 +1,5 @@
+open Lwt.Infix
+
 let cmd_alchemy ~verbosity _options =
   Utilities.log ~verbosity "Starting alchemy command@." ;
-  Lwt.return ()
+  Alchemy_request.request () >>= fun _ -> Lwt.return ()
