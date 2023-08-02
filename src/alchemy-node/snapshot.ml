@@ -4,13 +4,13 @@ open Utilities
 
 let snap_shot_id : int ref = ref 1
 
-let snap_shot_pending : (bint, transaction list) Hashtbl.t = Hashtbl.create 10
+let snap_shot_pending = Hashtbl.create 10
 
-let snap_shot_block : (bint, transaction list) Hashtbl.t = Hashtbl.create 10
+let snap_shot_block = Hashtbl.create 10
 
 let snap_shot_block_header = Hashtbl.create 10
 
-let latest_validated_txs : transaction list ref = ref []
+let latest_validated_txs = ref []
 
 let snapshot_mined tx = latest_validated_txs := tx :: !latest_validated_txs
 
@@ -63,7 +63,7 @@ let print_compare ?(index = false) key =
 
   let rec affiche_priority pending accepted index_pending index_accept =
     match (pending, accepted) with
-    | [], _ | _, [] -> bar := index_accept + 1
+    | [], _ | _, [] -> bar := index_accept - !intersection
     | pending_tx :: sub_pending, accepted_tx :: sub_accepted ->
       let p_pf = calc_priority_fee bf pending_tx in
       let a_pf = calc_priority_fee bf accepted_tx in
@@ -75,7 +75,7 @@ let print_compare ?(index = false) key =
            ---------------------------------------------------@."
           index_pending index_accept p_pf a_pf
           (Option.value ~default:(-1) accepted_tx.transaction_index) ;
-          intersection := !intersection + 1;
+        intersection := !intersection + 1 ;
         affiche_priority sub_pending sub_accepted (index_pending + 1)
           (index_accept + 1)
       ) else if p_pf > a_pf then (
@@ -117,8 +117,9 @@ let print_compare ?(index = false) key =
       ) in
   let rec affiche_tx_index accepted =
     match accepted with
-    | [] -> ()
+    | [] -> bar := !bar - !intersection
     | tx :: sub_accepted ->
+      bar := Option.value ~default:0 tx.transaction_index ;
       (let a_pf = calc_priority_fee bf tx in
        try
          let _ = List.find (fun t -> t.tx_hash = tx.tx_hash) pending_priority in
@@ -129,9 +130,8 @@ let print_compare ?(index = false) key =
             --------------------------------------------------------------------------------------@."
            (EzEncoding.construct b_enc tx.tx_hash)
            a_pf
-           (Option.value ~default:(-1) tx.transaction_index);
-       intersection := !intersection + 1
-      
+           (Option.value ~default:(-1) tx.transaction_index) ;
+         intersection := !intersection + 1
        with Not_found ->
          Format.eprintf
            "|destination   |           | %s |\n\
@@ -150,12 +150,15 @@ let print_compare ?(index = false) key =
       | e :: l_aux ->
         if gu > podium then
           let x = calc_priority_fee bf e in
-          Format.eprintf "top %d de gas: \n\
-          estimation = %f\nindex of estimation = %d\n@."
-            podium x
-            index
+          Format.eprintf
+            "top %d de gas: \nestimation = %f\nindex of estimation = %d\n@."
+            podium x index
         else
-          let fuel = if e.gas < Constant.max_gu then e.gas else Constant.max_gu in
+          let fuel =
+            if e.gas < Constant.max_gu then
+              e.gas
+            else
+              Constant.max_gu in
           calc_tests l_aux (gu + fuel) (index + 1) in
     calc_tests pending_l 0 0 in
 
@@ -179,9 +182,24 @@ let print_compare ?(index = false) key =
      @."
     block_number bf
     (int_of_string block_header.gas_used)
-    (List.length pending) !intersection
-    !bar;
+    (List.length pending) !intersection !bar ;
   calc_estimation 10000000 pending_priority ;
   calc_estimation 15000000 pending_priority ;
   calc_estimation 20000000 pending_priority ;
   calc_estimation 25000000 pending_priority
+
+let remove_snapshot key =
+  Hashtbl.remove snap_shot_block key ;
+  Hashtbl.remove snap_shot_block_header key ;
+  Hashtbl.remove snap_shot_pending key
+
+let by_priority = false
+
+let by_tx_index = true
+
+let print_stats ?(compare = by_priority) () =
+  if !snap_shot_id > 6 then (
+    print_compare (!snap_shot_id - 2) ~index:compare ;
+    remove_snapshot (!snap_shot_id - 3)
+  ) else
+    ()

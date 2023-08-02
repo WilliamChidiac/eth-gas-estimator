@@ -65,9 +65,7 @@ let error _ _ = failwith "error"
   by sorting this list in a descending order of the priority fees*)
 let rec refresh period =
   if true then (
-    if !Snapshot.snap_shot_id > 6 then
-      Snapshot.print_compare (!Snapshot.snap_shot_id - 2) ~index:false
-    else ();
+    Snapshot.print_stats () ;
     Lwt_unix.sleep period >>= fun _ -> refresh period
   ) else
     Lwt.return (Ok ())
