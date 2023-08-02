@@ -42,7 +42,7 @@ type config = {
 
 (**request messages*)
 type requests_params = {
-  rpc_version : string; [@key "jsonrpc"]
+  req_rpc_version : string; [@key "jsonrpc"]
   rq_id : int; [@key "id"]
   rq_method : string; [@key "method"]
   rq_params : string list; [@key "params"]
@@ -53,7 +53,7 @@ type requests_params = {
 
 (*Connection complete messages*)
 type conn = {
-  rpc_version : string; [@key "jsonrpc"]
+  conn_rpc_version : string; [@key "jsonrpc"]
   conn_id : int; [@key "id"]
   conn_result : string; [@key "result"]
 }

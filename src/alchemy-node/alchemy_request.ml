@@ -16,7 +16,7 @@ let uri = "wss://eth-mainnet.g.alchemy.com/v2/ytvWudRFU7i34JtwGZqu9MAynm_sUhK1"
 
 let alchemy_subscription meth =
   {
-    rpc_version = "2.0";
+    req_rpc_version = "2.0";
     rq_id = 1;
     rq_method = "eth_subscribe";
     rq_params = [meth];
@@ -53,7 +53,6 @@ let react (_w : string EzWs.action) s =
           Sorted_list.update_mempool Sorted_list.mempool b ;
           let time = Unix.gettimeofday () -. Int64.to_float b.timestamp in
           Lwt_unix.sleep (12. -. time) >>= fun _ ->
-          Format.eprintf "incr snapshot id@." ;
           Snapshot.snapshot_state !(Sorted_list.mempool.pending) ;
           Lwt.return ()))
     (fun exn -> Format.eprintf "exn:%s\n\n@." (Printexc.to_string exn)) ;
@@ -68,8 +67,7 @@ let rec refresh period =
   if true then (
     if !Snapshot.snap_shot_id > 6 then
       Snapshot.print_compare (!Snapshot.snap_shot_id - 2) ~index:false
-    else
-      () ;
+    else ();
     Lwt_unix.sleep period >>= fun _ -> refresh period
   ) else
     Lwt.return (Ok ())
