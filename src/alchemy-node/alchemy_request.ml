@@ -54,6 +54,7 @@ let react (_w : string EzWs.action) s =
           let time = Unix.gettimeofday () -. Int64.to_float b.timestamp in
           Lwt_unix.sleep (12. -. time) >>= fun _ ->
           Snapshot.snapshot_state !(Sorted_list.mempool.pending) ;
+          Snapshot.print_stats ();
           Lwt.return ()))
     (fun exn -> Format.eprintf "exn:%s\n\n@." (Printexc.to_string exn)) ;
   Lwt.return (Ok ())
@@ -65,7 +66,6 @@ let error _ _ = failwith "error"
   by sorting this list in a descending order of the priority fees*)
 let rec refresh period =
   if true then (
-    Snapshot.print_stats () ;
     Lwt_unix.sleep period >>= fun _ -> refresh period
   ) else
     Lwt.return (Ok ())

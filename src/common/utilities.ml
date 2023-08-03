@@ -65,6 +65,16 @@ let calc_priority_fee bf tx =
     raise
       (Tx_type_undefined (Printf.sprintf "Unknown type of transaction : %d" x))
 
+
+let min_gas_price bf =
+  let rate = 0.94166666 in
+let power x n =
+  let rec aux n i = 
+    if n = 0 then i
+    else aux (n-1) (i*.x)
+  in aux n 1.
+in (power rate 4) *. bf
+
 let set_verbose v =
   begin
     Constant.verbose :=

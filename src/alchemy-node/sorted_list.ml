@@ -9,6 +9,7 @@ type 'a tx_pool = {
   mutex_pending : Mutex.t;
   mutex_account : Mutex.t;
   current_base_fee : float ref;
+  pool_min_gp: float ref
 }
 
 let empty =
@@ -18,6 +19,7 @@ let empty =
     mutex_pending = Mutex.create ();
     mutex_account = Mutex.create ();
     current_base_fee = ref 0.;
+    pool_min_gp = ref min_gp
   }
 
 (**sorted lists*)
@@ -64,8 +66,12 @@ let process_pending_tx tx mempool =
       Hashtbl.replace mempool.blacklist tx.from (tx.tx_nonce, age) ;
       Mutex.unlock mempool.mutex_account
     )
-  with Not_found ->
-    if tx_gp < min_gp then (
+  with Not_found ->(*
+    Format.eprintf "base fee:%f\n\
+                    minimum gas price:%f\n@."
+                    !(mempool.current_base_fee)
+                    !(mempool.pool_min_gp); *)
+    if tx_gp < !(mempool.pool_min_gp) then (
       Mutex.lock mempool.mutex_account ;
       Hashtbl.add mempool.blacklist tx.from (tx.tx_nonce, 0) ;
       Mutex.unlock mempool.mutex_account ;
@@ -122,7 +128,8 @@ let update_base_fee mempool (bf : baseFee) =
   let gas = float_of_string bf.gas_used in
   mempool.current_base_fee :=
     (base +. (base *. ((gas -. estimate) /. estimate *. max_coeff)))
-    /. 1000000000.
+    /. 1000000000.;
+  mempool.pool_min_gp := Utilities.min_gas_price !(mempool.current_base_fee)
 
 let update_mempool mempool (bf : baseFee) =
   update_base_fee mempool bf ;

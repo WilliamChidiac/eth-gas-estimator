@@ -2,7 +2,7 @@ open Eth
 open Common_types
 open Utilities
 
-let snap_shot_id : int ref = ref 1
+let snap_shot_id : int ref = ref 0
 
 let snap_shot_pending = Hashtbl.create 10
 
@@ -198,8 +198,8 @@ let by_priority = false
 let by_tx_index = true
 
 let print_stats ?(compare = by_priority) () =
-  if !snap_shot_id > 6 then (
-    print_compare (!snap_shot_id - 2) ~index:compare ;
-    remove_snapshot (!snap_shot_id - 3)
+  if !snap_shot_id > 1 then (
+    print_compare (!snap_shot_id -1) ~index:compare ;
+    remove_snapshot (!snap_shot_id -2)
   ) else
     ()
