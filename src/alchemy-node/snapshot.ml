@@ -61,7 +61,7 @@ let print_compare ?(index = false) key =
       (fun a b -> compare a.transaction_index b.transaction_index)
       accepted in
 
-  let rec affiche_priority pending accepted index_pending index_accept =
+  let rec print_priority pending accepted index_pending index_accept =
     match (pending, accepted) with
     | [], _ | _, [] -> block_not_mempool := index_accept - !intersection
     | pending_tx :: sub_pending, accepted_tx :: sub_accepted ->
@@ -76,7 +76,7 @@ let print_compare ?(index = false) key =
           index_pending index_accept p_pf a_pf
           (Option.value ~default:(-1) accepted_tx.transaction_index) ;
         intersection := !intersection + 1 ;
-        affiche_priority sub_pending sub_accepted (index_pending + 1)
+        print_priority sub_pending sub_accepted (index_pending + 1)
           (index_accept + 1)
       ) else if p_pf > a_pf then (
         Format.eprintf
@@ -86,7 +86,7 @@ let print_compare ?(index = false) key =
            ---------------------------------------------------@."
           index_pending p_pf
           (EzEncoding.construct b_enc pending_tx.tx_hash) ;
-        affiche_priority sub_pending accepted (index_pending + 1) index_accept
+        print_priority sub_pending accepted (index_pending + 1) index_accept
       ) else if p_pf < a_pf then (
         Format.eprintf
           "|index in list |          |    %d    | \n\
@@ -95,7 +95,7 @@ let print_compare ?(index = false) key =
            ---------------------------------------------------@."
           index_accept a_pf
           (Option.value ~default:(-1) accepted_tx.transaction_index) ;
-        affiche_priority pending sub_accepted index_pending (index_accept + 1)
+        print_priority pending sub_accepted index_pending (index_accept + 1)
       ) else if compare pending_tx.tx_hash accepted_tx.tx_hash > 0 then (
         Format.eprintf
           "|index in list |    %d    |           | \n\
@@ -104,7 +104,7 @@ let print_compare ?(index = false) key =
            ---------------------------------------------------@."
           index_pending p_pf
           (EzEncoding.construct b_enc pending_tx.tx_hash) ;
-        affiche_priority sub_pending accepted (index_pending + 1) index_accept
+        print_priority sub_pending accepted (index_pending + 1) index_accept
       ) else (
         Format.eprintf
           "|index in list |          |    %d    | \n\
@@ -113,9 +113,9 @@ let print_compare ?(index = false) key =
            ---------------------------------------------------@."
           index_accept a_pf
           (Option.value ~default:(-1) accepted_tx.transaction_index) ;
-        affiche_priority pending sub_accepted index_pending (index_accept + 1)
+        print_priority pending sub_accepted index_pending (index_accept + 1)
       ) in
-  let rec affiche_tx_index accepted =
+  let rec print_tx_index accepted =
     match accepted with
     | [] -> block_not_mempool := !block_not_mempool - !intersection
     | tx :: sub_accepted ->
@@ -141,7 +141,7 @@ let print_compare ?(index = false) key =
            (EzEncoding.construct b_enc tx.tx_hash)
            a_pf
            (Option.value ~default:(-1) tx.transaction_index)) ;
-      affiche_tx_index sub_accepted in
+      print_tx_index sub_accepted in
 
   let calc_estimation podium pending_l =
     let rec calc_tests pending_list gu index =
@@ -169,9 +169,9 @@ let print_compare ?(index = false) key =
      |              |Pending txs|accepted txs| @." block_number bf
     (int_of_string block_header.gas_used) ;
   if index = false then
-    affiche_priority pending_priority accepted_priority 0 0
+    print_priority pending_priority accepted_priority 0 0
   else
-    affiche_tx_index accepted_tx_index ;
+    print_tx_index accepted_tx_index ;
   Format.eprintf
     "block number = %d \n\
      base fee = %f \n\
