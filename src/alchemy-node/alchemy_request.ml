@@ -29,8 +29,14 @@ let request_mined = alchemy_subscription "alchemy_minedTransactions"
 
 let request_new_block = alchemy_subscription "newHeads"
 
-(**this function will be called every time we receive a notification. the receiveed message will then be treated depending on it's type.*)
-let react (_w : string EzWs.action) s =
+(**[react websocket  message] takes a json string as message, decodes it and treats it depending the type
+    the json string can be either:
+     - connection complete message
+     - pending transaction 
+     - mined trnasaction 
+     - new block header 
+     /*)
+let react _ s =
   Lwt.dont_wait
     (fun () ->
       Lwt.return (response_from_json s) >>= fun resp ->
@@ -54,21 +60,24 @@ let react (_w : string EzWs.action) s =
           let time = Unix.gettimeofday () -. Int64.to_float b.timestamp in
           Lwt_unix.sleep (12. -. time) >>= fun _ ->
           Snapshot.snapshot_state !(Sorted_list.mempool.pending) ;
-          Snapshot.print_stats ();
+          Snapshot.print_stats () ;
           Lwt.return ()))
     (fun exn -> Format.eprintf "exn:%s\n\n@." (Printexc.to_string exn)) ;
   Lwt.return (Ok ())
 
 let error _ _ = failwith "error"
 
-(**this function will be called every "period" seconds where period is a float.
-  it uses the list of pending to calculate the probabilities of inclusion in the new block depending on the priority fee
-  by sorting this list in a descending order of the priority fees*)
+(**[refresh period] is an infite loop function that calls it self every [period] seconds,
+    to make the program run forever*)
 let rec refresh period =
-  if true then (
+  if true then
     Lwt_unix.sleep period >>= fun _ -> refresh period
-  ) else
+  else
     Lwt.return (Ok ())
+
+(**[request ()] connects to the websocket,
+     send all the wanted subscription 
+     then calls the refresh function to loop infinitly*)
 
 let request () =
   begin

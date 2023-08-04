@@ -4,11 +4,16 @@ open Common_types
 exception Tx_type_undefined of string
 
 (**conversion functions*)
+
+(**[bzOption_to_float b] convert a bz option [b] into a float and return the result*)
 let bzOption_to_float ?(def = Z.of_int 0) b =
   Z.to_float (Option.value ~default:def b) /. 1000000000.
 
+(**[bz_to_float b] convert a bz into a float and returns the result*)
 let bz_to_float b = Z.to_float b /. 1000000000.
 
+(**[print_trans t base_fee] print relevant information on the transaction [t]. 
+    the base_fee parameters helps calculates the priority_fee*)
 let print_trans (t : transaction) base_fee =
   Format.eprintf
     "transaction nonce: %d\n\
@@ -49,10 +54,12 @@ let newBaseFee (bf : baseFee) =
   )
   /. 1000000000.
 
-(**calculate the priority fee of a transaction at a certain time.
-  for each type of transaction (0, 1, 2) there is a different method to calculate the priority fee.
-  however type 0 and type 1 uses both the same technic (but more research should be done on type 1 )
-    note that the returned value should not be stored since it varies depending on the base fees.*)
+(**[calc_priority_fee tx] returns the priority fee in a given time "through the base fee" of a transaction [tx] since it chages overtime depending on the base fee.
+  the priority fee's formula depends on the type of the transaction [tx] :
+   for [tx] of type 0 and 1
+    priority fee = gas price - base fee
+  for [tx] of type 2 
+    priority fee = min (max fee per gas - base fee , max priority fee)*) 
 let calc_priority_fee bf tx =
   match tx.typ with
   | None -> 0.
@@ -64,16 +71,18 @@ let calc_priority_fee bf tx =
   | Some x ->
     raise
       (Tx_type_undefined (Printf.sprintf "Unknown type of transaction : %d" x))
-
-
+(**[min_gas_price bf] given a base fee, this function returns the minimum gas price that a sender should input to consider adding it's transaction in out mempool. 
+    this function is mainly used to blakclist the accounts and filter the mempool.*)
 let min_gas_price bf =
   let rate = 0.94166666 in
-let power x n =
-  let rec aux n i = 
-    if n = 0 then i
-    else aux (n-1) (i*.x)
-  in aux n 1.
-in (power rate 4) *. bf
+  let power x n =
+    let rec aux n i =
+      if n = 0 then
+        i
+      else
+        aux (n - 1) (i *. x) in
+    aux n 1. in
+  power rate 4 *. bf
 
 let set_verbose v =
   begin
