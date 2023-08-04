@@ -55,7 +55,7 @@ let print_compare ?(index = false) key =
   let accepted_priority = sort_by_priority_fee bf accepted in
 
   let intersection = ref 0 in
-  let bar = ref 0 in
+  let block_not_mempool = ref 0 in
   let accepted_tx_index =
     List.sort
       (fun a b -> compare a.transaction_index b.transaction_index)
@@ -63,7 +63,7 @@ let print_compare ?(index = false) key =
 
   let rec affiche_priority pending accepted index_pending index_accept =
     match (pending, accepted) with
-    | [], _ | _, [] -> bar := index_accept - !intersection
+    | [], _ | _, [] -> block_not_mempool := index_accept - !intersection
     | pending_tx :: sub_pending, accepted_tx :: sub_accepted ->
       let p_pf = calc_priority_fee bf pending_tx in
       let a_pf = calc_priority_fee bf accepted_tx in
@@ -117,9 +117,9 @@ let print_compare ?(index = false) key =
       ) in
   let rec affiche_tx_index accepted =
     match accepted with
-    | [] -> bar := !bar - !intersection
+    | [] -> block_not_mempool := !block_not_mempool - !intersection
     | tx :: sub_accepted ->
-      bar := Option.value ~default:0 tx.transaction_index ;
+      block_not_mempool := Option.value ~default:0 tx.transaction_index ;
       (let a_pf = calc_priority_fee bf tx in
        try
          let _ = List.find (fun t -> t.tx_hash = tx.tx_hash) pending_priority in
@@ -182,7 +182,7 @@ let print_compare ?(index = false) key =
      @."
     block_number bf
     (int_of_string block_header.gas_used)
-    (List.length pending) !intersection !bar ;
+    (List.length pending) !intersection !block_not_mempool ;
   calc_estimation 10000000 pending_priority ;
   calc_estimation 15000000 pending_priority ;
   calc_estimation 20000000 pending_priority ;
