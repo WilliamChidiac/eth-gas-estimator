@@ -1,4 +1,4 @@
-version = 0.25.1
+version = 0.26.0
 let-binding-spacing = compact
 field-space = loose
 break-separators = after
