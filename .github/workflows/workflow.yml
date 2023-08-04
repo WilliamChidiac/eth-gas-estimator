@@ -41,3 +41,6 @@ jobs:
 
       - name: Run build
         run: opam exec -- make
+
+      - name: Lint OCaml files
+        run: opam exec -- make lint

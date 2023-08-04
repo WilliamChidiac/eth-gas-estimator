@@ -6,7 +6,7 @@ VERSION=src/common/version.ml
 GIT=$(shell git log --pretty=format:'%H' -n 1)
 RELEASE_VERSION=0.1
 DATE=$(shell date)
-
+SCRIPTS=scripts/
 
 all: version build copy-binaries
 
@@ -27,6 +27,8 @@ copy-binaries:
 format:
 	@$(BUILD) build @fmt --auto-promote 2> /dev/null || exit 0
 
+lint:
+	@$(SCRIPTS)/lint.sh
 
 version:
 	@echo "let version = \"$(RELEASE_VERSION)\"" > $(VERSION)
