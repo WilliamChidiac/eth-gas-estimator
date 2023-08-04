@@ -4,22 +4,22 @@ open Common_types
 open Constant
 
 type 'a tx_pool = {
-  pending : (transaction * int) list ref;
+  mutable pending : (transaction * int) list;
   blacklist : (address, bint * int) Hashtbl.t;
   mutex_pending : Mutex.t;
   mutex_account : Mutex.t;
-  current_base_fee : float ref;
-  pool_min_gp : float ref;
+  mutable current_base_fee : float;
+  mutable pool_min_gp : float;
 }
 
 let empty =
   {
-    pending = ref [];
+    pending = [];
     blacklist = Hashtbl.create 10;
     mutex_pending = Mutex.create ();
     mutex_account = Mutex.create ();
-    current_base_fee = ref 0.;
-    pool_min_gp = ref min_gp;
+    current_base_fee = 0.;
+    pool_min_gp = min_gp;
   }
 
 (**sorted lists*)
@@ -32,7 +32,7 @@ let mempool = empty
     priority fee = gas price - base fee
   for [tx] of type 2 
     priority fee = min (max fee per gas - base fee , max priority fee)*)
-let calc_priority_fee ?(bf = !(mempool.current_base_fee)) = calc_priority_fee bf
+let calc_priority_fee ?(bf = mempool.current_base_fee) = calc_priority_fee bf
 
 (**[compare_by_priority_fee a b] helps comparing 2 transaction for sorting and filtering purposes*)
 let compare_by_priority_fee a b =
@@ -61,7 +61,7 @@ let add_tx tx mempool =
       else
         pair :: aux sub_l in
   Mutex.lock mempool.mutex_pending ;
-  mempool.pending := aux !(mempool.pending) ;
+  mempool.pending <- aux mempool.pending ;
   Mutex.unlock mempool.mutex_pending
 
 (**[process_pending_tx tx mempool] helps filter the transaction before adding them to the mempool. 
@@ -78,19 +78,19 @@ let process_pending_tx tx mempool =
       Mutex.unlock mempool.mutex_account
     )
   with Not_found ->
-    if tx_gp < !(mempool.pool_min_gp) then (
+    if tx_gp < mempool.pool_min_gp then (
       Mutex.lock mempool.mutex_account ;
       Hashtbl.add mempool.blacklist tx.from (tx.tx_nonce, 0) ;
       Mutex.unlock mempool.mutex_account ;
       Mutex.lock mempool.mutex_pending ;
-      mempool.pending :=
+      mempool.pending <-
         List.filter
           (fun pair ->
             if (fst pair).from <> tx.from then
               true
             else
               false)
-          !(mempool.pending) ;
+          mempool.pending ;
       Mutex.unlock mempool.mutex_pending
     ) else
       add_tx tx mempool
@@ -106,7 +106,7 @@ let remove_tx tx mempool =
       else
         e :: rm_tx tx subl in
   Mutex.lock mempool.mutex_pending ;
-  mempool.pending := rm_tx tx !(mempool.pending) ;
+  mempool.pending <- rm_tx tx mempool.pending ;
   Mutex.unlock mempool.mutex_pending
 
 (**[update_pending_age mempool] updates the age of the stored pending transaction
@@ -120,7 +120,7 @@ let update_pending_age mempool =
         aux sub_l
       else
         (fst e, snd e + 1) :: aux sub_l in
-  mempool.pending := aux !(mempool.pending)
+  mempool.pending <- aux mempool.pending
 
 (**[update_blacklist_age mempool] updates the age of the blacklisted addresses. 
     if an adressed has reached it's maximum aged, it is removed from the blacklist*)
@@ -141,10 +141,10 @@ let update_blacklist_age mempool =
 let update_base_fee mempool (bf : baseFee) =
   let base = float_of_string bf.base_fee in
   let gas = float_of_string bf.gas_used in
-  mempool.current_base_fee :=
+  mempool.current_base_fee <-
     (base +. (base *. ((gas -. estimate) /. estimate *. max_coeff)))
     /. 1000000000. ;
-  mempool.pool_min_gp := Utilities.min_gas_price !(mempool.current_base_fee)
+  mempool.pool_min_gp <- Utilities.min_gas_price mempool.current_base_fee
 
 (**[update_mempool mempool bf] wrapper of all the update functions. 
     this function should be called every time a new block is published*)

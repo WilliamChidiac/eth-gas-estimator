@@ -59,7 +59,7 @@ let react _ s =
           Sorted_list.update_mempool Sorted_list.mempool b ;
           let time = Unix.gettimeofday () -. Int64.to_float b.timestamp in
           Lwt_unix.sleep (12. -. time) >>= fun _ ->
-          Snapshot.snapshot_state !(Sorted_list.mempool.pending) ;
+          Snapshot.snapshot_state Sorted_list.mempool.pending ;
           Snapshot.print_stats () ;
           Lwt.return ()))
     (fun exn -> Format.eprintf "exn:%s\n\n@." (Printexc.to_string exn)) ;
