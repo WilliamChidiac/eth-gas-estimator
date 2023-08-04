@@ -4,13 +4,13 @@ open Utilities
 
 let snap_shot_id : int ref = ref 0
 
-let snap_shot_pending = Hashtbl.create 10
+let snap_shot_pending : (bint, transaction list) Hashtbl.t = Hashtbl.create 10
 
-let snap_shot_block = Hashtbl.create 10
+let snap_shot_block : (bint, transaction list) Hashtbl.t = Hashtbl.create 10
 
-let snap_shot_block_header = Hashtbl.create 10
+let snap_shot_block_header : (bint, baseFee) Hashtbl.t = Hashtbl.create 10
 
-let latest_validated_txs = ref []
+let latest_validated_txs : transaction list ref = ref []
 
 let snapshot_mined tx = latest_validated_txs := tx :: !latest_validated_txs
 
@@ -199,7 +199,7 @@ let by_tx_index = true
 
 let print_stats ?(compare = by_priority) () =
   if !snap_shot_id > 1 then (
-    print_compare (!snap_shot_id -1) ~index:compare ;
-    remove_snapshot (!snap_shot_id -2)
+    print_compare (!snap_shot_id - 1) ~index:compare ;
+    remove_snapshot (!snap_shot_id - 2)
   ) else
     ()
