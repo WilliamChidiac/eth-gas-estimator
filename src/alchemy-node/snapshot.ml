@@ -44,7 +44,11 @@ let sort_by comp list = List.sort (fun a b -> comp a b) list
 
 let sort_by_priority_fee bf list = sort_by (compare_by_priority_fee bf) list
 
-let print_compare ?(index = false) key =
+(**[print_compare by_index key] shows statistics related to the mempool and a specific block at the moment it was released to help comparision with our estimations. 
+  the comparision is shown sorted by transaction index when by_priority is set to false,
+  and sort by priority fee when the by_priority is to tru. 
+  key is the nth validated block since the begining of the program. *)
+let print_compare ?(by_priority = true) key =
   let pending = Hashtbl.find snap_shot_pending key in
   let accepted = Hashtbl.find snap_shot_block key in
   let block_header = Hashtbl.find snap_shot_block_header key in
@@ -168,7 +172,7 @@ let print_compare ?(index = false) key =
      gas used = %d \n\
      |              |Pending txs|accepted txs| @." block_number bf
     (int_of_string block_header.gas_used) ;
-  if index = false then
+  if by_priority = true then
     print_priority pending_priority accepted_priority 0 0
   else
     print_tx_index accepted_tx_index ;
@@ -197,9 +201,10 @@ let by_priority = false
 
 let by_tx_index = true
 
+(**[print_stats compare] works exactly like [print_compare] except it always prints the latest snapshot and delets all previous snapshots*)
 let print_stats ?(compare = by_priority) () =
   if !snap_shot_id > 1 then (
-    print_compare (!snap_shot_id - 1) ~index:compare ;
+    print_compare (!snap_shot_id - 1) ~by_priority:compare ;
     remove_snapshot (!snap_shot_id - 2)
   ) else
     ()
