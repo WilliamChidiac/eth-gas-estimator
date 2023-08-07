@@ -53,7 +53,7 @@ let print_compare ?(by_priority = true) key =
   let accepted = Hashtbl.find snap_shot_block key in
   let block_header = Hashtbl.find snap_shot_block_header key in
   let block_number = block_header.number in
-  let bf = float_of_string block_header.base_fee /. 1000000000. in
+  let bf = Z.of_string block_header.base_fee in
 
   let pending_priority = sort_by_priority_fee bf pending in
   let accepted_priority = sort_by_priority_fee bf accepted in
@@ -74,48 +74,30 @@ let print_compare ?(by_priority = true) key =
       if accepted_tx.tx_hash = pending_tx.tx_hash then (
         Format.eprintf
           "|index in list |    %d    |    %d    | \n\
-           |priority fees | %f | %f | \n\
+           |priority fees | %s | %s | \n\
            |transaction id|          |    %d    | \n\
-           ---------------------------------------------------@."
-          index_pending index_accept p_pf a_pf
+           --------------------------------------------------------------------------------------------------@."
+          index_pending index_accept (print_in p_pf) (print_in a_pf)
           (Option.value ~default:(-1) accepted_tx.transaction_index) ;
         intersection := !intersection + 1 ;
         print_priority sub_pending sub_accepted (index_pending + 1)
           (index_accept + 1)
-      ) else if p_pf > a_pf then (
+      ) else if compare_by_priority_fee bf pending_tx accepted_tx < 0 then (
         Format.eprintf
           "|index in list |    %d    |           | \n\
-           |priority fees | %f |           | \n\
+           |priority fees | %s |           | \n\
            |hash          | %s | \n\
-           ---------------------------------------------------@."
-          index_pending p_pf
-          (EzEncoding.construct b_enc pending_tx.tx_hash) ;
-        print_priority sub_pending accepted (index_pending + 1) index_accept
-      ) else if p_pf < a_pf then (
-        Format.eprintf
-          "|index in list |          |    %d    | \n\
-           |priority fees |          | %f | \n\
-           |transaction_id|          |    %d    | \n\
-           ---------------------------------------------------@."
-          index_accept a_pf
-          (Option.value ~default:(-1) accepted_tx.transaction_index) ;
-        print_priority pending sub_accepted index_pending (index_accept + 1)
-      ) else if compare pending_tx.tx_hash accepted_tx.tx_hash > 0 then (
-        Format.eprintf
-          "|index in list |    %d    |           | \n\
-           |priority fees | %f |           | \n\
-           |hash          | %s | \n\
-           ---------------------------------------------------@."
-          index_pending p_pf
+           --------------------------------------------------------------------------------------------------@."
+          index_pending (print_in p_pf)
           (EzEncoding.construct b_enc pending_tx.tx_hash) ;
         print_priority sub_pending accepted (index_pending + 1) index_accept
       ) else (
         Format.eprintf
           "|index in list |          |    %d    | \n\
-           |priority fees |          | %f | \n\
+           |priority fees |          | %s | \n\
            |transaction_id|          |    %d    | \n\
-           ---------------------------------------------------@."
-          index_accept a_pf
+           --------------------------------------------------------------------------------------------------@."
+          index_accept (print_in a_pf)
           (Option.value ~default:(-1) accepted_tx.transaction_index) ;
         print_priority pending sub_accepted index_pending (index_accept + 1)
       ) in
@@ -128,22 +110,22 @@ let print_compare ?(by_priority = true) key =
        try
          let _ = List.find (fun t -> t.tx_hash = tx.tx_hash) pending_priority in
          Format.eprintf
-           "|destination   |  \\    /   | %s | \n\
-            |priority fees |   \\  /    | %f |       \n\
-            |transaction_id|    \\/     |    %d    | \n\
-            --------------------------------------------------------------------------------------@."
+           "|destination   |   \\ /     | %s | \n\
+            |priority fees |    X      | %s |       \n\
+            |transaction_id|   / \\     |    %d    | \n\
+            --------------------------------------------------------------------------------------------------@."
            (EzEncoding.construct b_enc tx.tx_hash)
-           a_pf
+           (print_in a_pf)
            (Option.value ~default:(-1) tx.transaction_index) ;
          intersection := !intersection + 1
        with Not_found ->
          Format.eprintf
-           "|destination   |           | %s |\n\
-            |priority fees |           | %f |       \n\
-            |transaction_id|           |    %d    | \n\
-            --------------------------------------------------------------------------------------@."
+           "|destination   |           | %s \n\
+            |priority fees |           |    %s \n\
+            |transaction_id|           |    %d \n\
+            --------------------------------------------------------------------------------------------------@."
            (EzEncoding.construct b_enc tx.tx_hash)
-           a_pf
+           (print_in a_pf)
            (Option.value ~default:(-1) tx.transaction_index)) ;
       print_tx_index sub_accepted in
 
@@ -155,8 +137,8 @@ let print_compare ?(by_priority = true) key =
         if gu > podium then
           let x = calc_priority_fee bf e in
           Format.eprintf
-            "top %d de gas: \nestimation = %f\nindex of estimation = %d\n@."
-            podium x index
+            "top %d de gas: \nestimation = %s\nindex of estimation = %d\n@."
+            podium (print_in x) index
         else
           let fuel =
             if e.gas < Constant.max_gu then
@@ -168,9 +150,9 @@ let print_compare ?(by_priority = true) key =
 
   Format.eprintf
     "block number = %d \n\
-     base fee = %f \n\
+     base fee = %s \n\
      gas used = %d \n\
-     |              |Pending txs|accepted txs| @." block_number bf
+     |              |Pending txs|accepted txs| @." block_number (print_in bf)
     (int_of_string block_header.gas_used) ;
   if by_priority = true then
     print_priority pending_priority accepted_priority 0 0
@@ -178,13 +160,13 @@ let print_compare ?(by_priority = true) key =
     print_tx_index accepted_tx_index ;
   Format.eprintf
     "block number = %d \n\
-     base fee = %f \n\
+     base fee = %s \n\
      gas used = %d \n\
      mempool length = %d \n\
      tx in mempool and block = %d \n\
      tx in block but not in mempool = %d \n\
      @."
-    block_number bf
+    block_number (print_in bf)
     (int_of_string block_header.gas_used)
     (List.length pending) !intersection !block_not_mempool ;
   calc_estimation 10000000 pending_priority ;
@@ -197,9 +179,9 @@ let remove_snapshot key =
   Hashtbl.remove snap_shot_block_header key ;
   Hashtbl.remove snap_shot_pending key
 
-let by_priority = false
+let by_priority = true
 
-let by_tx_index = true
+let by_tx_index = false
 
 (**[print_stats compare] works exactly like [print_compare] except it always prints the latest snapshot and delets all previous snapshots*)
 let print_stats ?(compare = by_priority) () =

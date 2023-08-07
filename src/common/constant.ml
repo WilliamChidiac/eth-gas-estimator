@@ -1,8 +1,8 @@
 let verbose = ref Common_types.Default
 
-let estimate = 15000000.
+let estimate = Q.of_float 15000000.
 
-let max_coeff = 0.125
+let max_coeff = Q.of_float 12.5
 
 let delta_pending_tx = 4
 
@@ -10,6 +10,8 @@ let delta_account = 3
 
 let refresh_rate = ref 10.
 
-let min_gp = 11.
+let min_gp = Z.of_int 11_000_000_000
 
 let max_gu = 500_000
+
+let gwei = true

@@ -5,12 +5,15 @@ exception Tx_type_undefined of string
 
 (**conversion functions*)
 
-(**[bzOption_to_float b] convert a bz option [b] into a float and return the result*)
-let bzOption_to_float ?(def = Z.of_int 0) b =
-  Z.to_float (Option.value ~default:def b) /. 1000000000.
+(**[print_in ~gwei value] helps in the printing of price values, 
+    where [value] is Z.t mainly representing a fee in wei and 
+    [gwei] is a boolean that determines wheter we should print [value] in wei or gwei*)
+let print_in ?(gwei=Constant.gwei) wei = 
+  match gwei with
+  |false -> Z.to_string wei 
+  |true -> Printf.sprintf "%.5f" (Q.to_float Q.((Q.of_bigint wei) / Q.of_int 1_000_000_000))
 
-(**[bz_to_float b] convert a bz into a float and returns the result*)
-let bz_to_float b = Z.to_float b /. 1000000000.
+
 
 (**[print_trans t base_fee] print relevant information on the transaction [t]. 
     the base_fee parameters helps calculates the priority_fee*)
@@ -46,13 +49,9 @@ let response_from_json (json : string) : response =
 (** calculate the base fee of the upcoming block,
     assuming that the "bf" parameter contains the necessary information of the last block added on the chain*)
 let newBaseFee (bf : baseFee) =
-  let base = float_of_string bf.base_fee in
-  let gas = float_of_string bf.gas_used in
-  (base
-  +. base
-     *. ((gas -. Constant.estimate) /. Constant.estimate *. Constant.max_coeff)
-  )
-  /. 1000000000.
+  let base = Q.of_string bf.base_fee in
+  let gas = Q.of_string bf.gas_used in
+  Q.to_bigint Q.(base + base * ((gas - Constant.estimate) / Constant.estimate * Constant.max_coeff))
 
 (**[calc_priority_fee tx] returns the priority fee in a given time "through the base fee" of a transaction [tx] since it chages overtime depending on the base fee.
   the priority fee's formula depends on the type of the transaction [tx] :
@@ -62,27 +61,27 @@ let newBaseFee (bf : baseFee) =
     priority fee = min (max fee per gas - base fee , max priority fee)*) 
 let calc_priority_fee bf tx =
   match tx.typ with
-  | None -> 0.
-  | Some 0 | Some 1 -> bz_to_float tx.gas_price -. bf
+  | None -> Z.of_int 0
+  | Some 0 | Some 1 -> Z.(tx.gas_price - bf)
   | Some 2 ->
-    let a_mpfpg = bzOption_to_float tx.max_priority_fee_per_gas in
-    let a_mpfg = bzOption_to_float tx.max_fee_per_gas in
-    min a_mpfpg (a_mpfg -. bf)
+    let a_mpfpg = Option.value ~default:(Z.of_int 0) tx.max_priority_fee_per_gas in
+    let a_mpfg = Option.value ~default:(Z.of_int 0) tx.max_fee_per_gas in
+    min a_mpfpg Z.(a_mpfg - bf)
   | Some x ->
     raise
       (Tx_type_undefined (Printf.sprintf "Unknown type of transaction : %d" x))
 (**[min_gas_price bf] given a base fee, this function returns the minimum gas price that a sender should input to consider adding it's transaction in out mempool. 
     this function is mainly used to blakclist the accounts and filter the mempool.*)
 let min_gas_price bf =
-  let rate = 0.94166666 in
+  let rate = Q.of_float 0.94166666 in
   let power x n =
     let rec aux n i =
       if n = 0 then
         i
       else
-        aux (n - 1) (i *. x) in
-    aux n 1. in
-  power rate 4 *. bf
+        aux (n - 1) Q.(i * x) in
+    aux n (Q.of_int 1) in
+  Q.to_bigint Q.((power rate 4) * Q.of_bigint bf)
 
 let set_verbose v =
   begin

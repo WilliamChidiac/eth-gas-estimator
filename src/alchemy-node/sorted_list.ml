@@ -8,8 +8,8 @@ type 'a tx_pool = {
   blacklist : (address, bint * int) Hashtbl.t;
   mutex_pending : Mutex.t;
   mutex_account : Mutex.t;
-  mutable current_base_fee : float;
-  mutable pool_min_gp : float;
+  mutable current_base_fee : Z.t;
+  mutable pool_min_gp : Z.t;
 }
 
 let empty =
@@ -18,7 +18,7 @@ let empty =
     blacklist = Hashtbl.create 10;
     mutex_pending = Mutex.create ();
     mutex_account = Mutex.create ();
-    current_base_fee = 0.;
+    current_base_fee = Z.of_int 0;
     pool_min_gp = min_gp;
   }
 
@@ -69,7 +69,7 @@ let add_tx tx mempool =
     and adds the transaction to the mempool if it has valid inputs 
     or blacklist the sender's address if it is not already blacklisted.*)
 let process_pending_tx tx mempool =
-  let tx_gp = bz_to_float tx.gas_price in
+  let tx_gp = tx.gas_price in
   try
     let nonce, age = Hashtbl.find mempool.blacklist tx.from in
     if tx.tx_nonce < nonce then (
@@ -139,11 +139,7 @@ let update_blacklist_age mempool =
 (**[update_base_fee mempool bf] calculates the new base fee using last block informations
     and stores it in mempool.current_base_fee.*)
 let update_base_fee mempool (bf : baseFee) =
-  let base = float_of_string bf.base_fee in
-  let gas = float_of_string bf.gas_used in
-  mempool.current_base_fee <-
-    (base +. (base *. ((gas -. estimate) /. estimate *. max_coeff)))
-    /. 1000000000. ;
+  mempool.current_base_fee <- Utilities.newBaseFee bf ;
   mempool.pool_min_gp <- Utilities.min_gas_price mempool.current_base_fee
 
 (**[update_mempool mempool bf] wrapper of all the update functions. 
