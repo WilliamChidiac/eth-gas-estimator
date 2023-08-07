@@ -11,3 +11,5 @@ let delta_account = 3
 let refresh_rate = ref 10.
 
 let min_gp = 11.
+
+let max_gu = 500_000

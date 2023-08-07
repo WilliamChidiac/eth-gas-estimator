@@ -16,7 +16,7 @@ let uri = "wss://eth-mainnet.g.alchemy.com/v2/ytvWudRFU7i34JtwGZqu9MAynm_sUhK1"
 
 let alchemy_subscription meth =
   {
-    rpc_version = "2.0";
+    rq_rpc_version = "2.0";
     rq_id = 1;
     rq_method = "eth_subscribe";
     rq_params = [meth];
@@ -29,8 +29,14 @@ let request_mined = alchemy_subscription "alchemy_minedTransactions"
 
 let request_new_block = alchemy_subscription "newHeads"
 
-(**this function will be called every time we receive a notification. the receiveed message will then be treated depending on it's type.*)
-let react (_w : string EzWs.action) s =
+(**[react websocket  message] takes a json string as message, decodes it and treats it depending the type
+    the json string can be either:
+     - connection complete message
+     - pending transaction 
+     - mined trnasaction 
+     - new block header 
+     /*)
+let react _ s =
   Lwt.dont_wait
     (fun () ->
       Lwt.return (response_from_json s) >>= fun resp ->
@@ -53,26 +59,21 @@ let react (_w : string EzWs.action) s =
           Sorted_list.update_mempool Sorted_list.mempool b ;
           let time = Unix.gettimeofday () -. Int64.to_float b.timestamp in
           Lwt_unix.sleep (12. -. time) >>= fun _ ->
-          Format.eprintf "incr snapshot id@." ;
-          Snapshot.snapshot_state !(Sorted_list.mempool.pending) ;
+          Snapshot.snapshot_state Sorted_list.mempool.pending ;
+          Snapshot.print_stats () ;
           Lwt.return ()))
     (fun exn -> Format.eprintf "exn:%s\n\n@." (Printexc.to_string exn)) ;
   Lwt.return (Ok ())
 
 let error _ _ = failwith "error"
 
-(**this function will be called every "period" seconds where period is a float.
-  it uses the list of pending to calculate the probabilities of inclusion in the new block depending on the priority fee
-  by sorting this list in a descending order of the priority fees*)
-let rec refresh period =
-  if true then (
-    if !Snapshot.snap_shot_id > 6 then
-      Snapshot.print_compare (!Snapshot.snap_shot_id - 2) ~index:false
-    else
-      () ;
-    Lwt_unix.sleep period >>= fun _ -> refresh period
-  ) else
-    Lwt.return (Ok ())
+(**[refresh period] is an infite loop function that calls it self every [period] seconds,
+    to make the program run forever*)
+let rec refresh period = Lwt_unix.sleep period >>= fun _ -> refresh period
+
+(**[request ()] connects to the websocket,
+     send all the wanted subscription 
+     then calls the refresh function to loop infinitly*)
 
 let request () =
   begin
