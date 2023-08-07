@@ -16,7 +16,7 @@ let uri = "wss://eth-mainnet.g.alchemy.com/v2/ytvWudRFU7i34JtwGZqu9MAynm_sUhK1"
 
 let alchemy_subscription meth =
   {
-    req_rpc_version = "2.0";
+    rq_rpc_version = "2.0";
     rq_id = 1;
     rq_method = "eth_subscribe";
     rq_params = [meth];
@@ -69,11 +69,7 @@ let error _ _ = failwith "error"
 
 (**[refresh period] is an infite loop function that calls it self every [period] seconds,
     to make the program run forever*)
-let rec refresh period =
-  if true then
-    Lwt_unix.sleep period >>= fun _ -> refresh period
-  else
-    Lwt.return (Ok ())
+let rec refresh period = Lwt_unix.sleep period >>= fun _ -> refresh period
 
 (**[request ()] connects to the websocket,
      send all the wanted subscription 
