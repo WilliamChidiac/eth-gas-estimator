@@ -164,22 +164,22 @@ let print_compare ?(by_priority = true) key =
           calc_tests l_aux (gu + fuel) (index + 1) in
     calc_tests pending_l 0 0 in
 
-   Format.eprintf
+  Format.eprintf
     "block number = %d \n\
      base fee = %s \n\
      gas used = %d \n\
      |              |Pending txs|accepted txs| @." block_number (print_in bf)
     (int_of_string block_header.gas_used) ;
-  (if by_priority = true then
+  if by_priority = true then
     print_priority pending_priority accepted_priority 0 0
   else
-    print_tx_index accepted_tx_index );
+    print_tx_index accepted_tx_index ;
 
-   let id, (inter, bar) =
-    (if is_block_builder block_header then
+  let id, (inter, bar) =
+    if is_block_builder block_header then
       (0, overall_stats.(0))
     else
-      (1, overall_stats.(1))) in
+      (1, overall_stats.(1)) in
   overall_stats.(id) <- (!intersection + inter, !block_not_mempool + bar) ;
   Format.eprintf
     "block number = %d \n\
@@ -201,13 +201,17 @@ let print_compare ?(by_priority = true) key =
     (int_of_string block_header.gas_used)
     !intersection !block_not_mempool (List.length pending)
     (is_block_builder block_header)
-    (100. *. float_of_int (fst overall_stats.(0))
+    (100.
+    *. float_of_int (fst overall_stats.(0))
     /. float_of_int (fst overall_stats.(0) + snd overall_stats.(0)))
-    (100. *.float_of_int (snd overall_stats.(0))
+    (100.
+    *. float_of_int (snd overall_stats.(0))
     /. float_of_int (fst overall_stats.(0) + snd overall_stats.(0)))
-    (100. *. float_of_int (fst overall_stats.(1))
+    (100.
+    *. float_of_int (fst overall_stats.(1))
     /. float_of_int (fst overall_stats.(1) + snd overall_stats.(1)))
-    (100. *. float_of_int (snd overall_stats.(1))
+    (100.
+    *. float_of_int (snd overall_stats.(1))
     /. float_of_int (fst overall_stats.(1) + snd overall_stats.(1))) ;
   calc_estimation 10000000 pending_priority ;
   calc_estimation 15000000 pending_priority ;
