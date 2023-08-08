@@ -138,13 +138,13 @@ let update_blacklist_age mempool =
 
 (**[update_base_fee mempool bf] calculates the new base fee using last block informations
     and stores it in mempool.current_base_fee.*)
-let update_base_fee mempool (bf : baseFee) =
+let update_base_fee mempool (bf : block_header) =
   mempool.current_base_fee <- Utilities.newBaseFee bf ;
   mempool.pool_min_gp <- Utilities.min_gas_price mempool.current_base_fee
 
 (**[update_mempool mempool bf] wrapper of all the update functions. 
     this function should be called every time a new block is published*)
-let update_mempool mempool (bf : baseFee) =
+let update_mempool mempool (bf : block_header) =
   update_base_fee mempool bf ;
   update_pending_age mempool ;
   update_blacklist_age mempool

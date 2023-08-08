@@ -60,11 +60,12 @@ type conn = {
 [@@deriving encoding]
 
 (**contains all the important information to calculate the base fee of the upcomping block*)
-type baseFee = {
+type block_header = {
   base_fee : string; [@key "baseFeePerGas"]
   gas_used : string; [@key "gasUsed"]
   timestamp : bint64; [@key "timestamp"]
   number : bint; [@key "number"]
+  fee_recepient : string; [@key "miner"]
 }
 [@@deriving encoding { ignore }]
 
@@ -79,7 +80,7 @@ type mined_tx = {
 type res_ws =
   | Mined_transaction of mined_tx
   | Pending_transaction of transaction
-  | Base_fee of baseFee
+  | Block_header of block_header
 [@@deriving encoding { ignore }]
 
 type 'a result = ('a[@wrap "result"]) [@@deriving encoding { ignore }]

@@ -48,7 +48,7 @@ let response_from_json (json : string) : response =
 
 (** calculate the base fee of the upcoming block,
     assuming that the "bf" parameter contains the necessary information of the last block added on the chain*)
-let newBaseFee (bf : baseFee) =
+let newBaseFee (bf : block_header) =
   let base = Q.of_string bf.base_fee in
   let gas = Q.of_string bf.gas_used in
   Q.to_bigint Q.(base + base * ((gas - Constant.estimate) / Constant.estimate * Constant.max_coeff))

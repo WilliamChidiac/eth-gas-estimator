@@ -53,7 +53,7 @@ let react _ s =
           Snapshot.snapshot_mined t.tx_tx ;
           Sorted_list.remove_tx t.tx_tx Sorted_list.mempool ;
           Lwt.return ()
-        | Base_fee b ->
+        | Block_header b ->
           Snapshot.erase_block () ;
           Snapshot.snapshot_header b ;
           Sorted_list.update_mempool Sorted_list.mempool b ;

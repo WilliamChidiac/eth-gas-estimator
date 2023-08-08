@@ -8,7 +8,7 @@ let snap_shot_pending : (bint, transaction list) Hashtbl.t = Hashtbl.create 10
 
 let snap_shot_block : (bint, transaction list) Hashtbl.t = Hashtbl.create 10
 
-let snap_shot_block_header : (bint, baseFee) Hashtbl.t = Hashtbl.create 10
+let snap_shot_block_header : (bint, block_header) Hashtbl.t = Hashtbl.create 10
 
 let latest_validated_txs : transaction list ref = ref []
 
