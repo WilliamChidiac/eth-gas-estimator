@@ -2,6 +2,14 @@ open Eth
 open Common_types
 open Utilities
 
+let block_builders =
+  [
+    "0x1f9090aae28b8a3dceadf281b0f12828e676c326";
+    "0x95222290dd7278Aa3ddd389cc1e1d165cc4bafe5";
+    "0x690b9a9e9aa1c9db991c7721a92d351db4fac990";
+    "0xdafea492d9c6733ae3d56b7ed1adb60692c98bc5";
+  ]
+
 let snap_shot_id : int ref = ref 0
 
 let snap_shot_pending : (bint, transaction list) Hashtbl.t = Hashtbl.create 10
@@ -11,6 +19,14 @@ let snap_shot_block : (bint, transaction list) Hashtbl.t = Hashtbl.create 10
 let snap_shot_block_header : (bint, block_header) Hashtbl.t = Hashtbl.create 10
 
 let latest_validated_txs : transaction list ref = ref []
+
+let overall_stats = [|(0, 0); (0, 0)|]
+
+let is_block_builder header =
+  try
+    List.find (fun builder -> builder = header.fee_recepient) block_builders
+    |> fun _ -> true
+  with Not_found -> false
 
 let snapshot_mined tx = latest_validated_txs := tx :: !latest_validated_txs
 
@@ -148,27 +164,51 @@ let print_compare ?(by_priority = true) key =
           calc_tests l_aux (gu + fuel) (index + 1) in
     calc_tests pending_l 0 0 in
 
-  Format.eprintf
+   Format.eprintf
     "block number = %d \n\
      base fee = %s \n\
      gas used = %d \n\
      |              |Pending txs|accepted txs| @." block_number (print_in bf)
     (int_of_string block_header.gas_used) ;
-  if by_priority = true then
+  (if by_priority = true then
     print_priority pending_priority accepted_priority 0 0
   else
-    print_tx_index accepted_tx_index ;
+    print_tx_index accepted_tx_index );
+
+   let id, (inter, bar) =
+    (if is_block_builder block_header then
+      (0, overall_stats.(0))
+    else
+      (1, overall_stats.(1))) in
+  overall_stats.(id) <- (!intersection + inter, !block_not_mempool + bar) ;
   Format.eprintf
     "block number = %d \n\
      base fee = %s \n\
      gas used = %d \n\
-     mempool length = %d \n\
      tx in mempool and block = %d \n\
-     tx in block but not in mempool = %d \n\
+     tx in block but not in mempool = %d \n\n\
+     overall stats : \n\
+     mempool length = %d \n\
+     block builder = %b \n\n\
+     mev boost builder stats : \n\
+     intersection = %.2f %% \n\
+     complement = %.2f %% \n\n\
+     normal builder stats : \n\
+     intersection = %.2f %% \n\
+     complement = %.2f %% \n\
      @."
     block_number (print_in bf)
     (int_of_string block_header.gas_used)
-    (List.length pending) !intersection !block_not_mempool ;
+    !intersection !block_not_mempool (List.length pending)
+    (is_block_builder block_header)
+    (100. *. float_of_int (fst overall_stats.(0))
+    /. float_of_int (fst overall_stats.(0) + snd overall_stats.(0)))
+    (100. *.float_of_int (snd overall_stats.(0))
+    /. float_of_int (fst overall_stats.(0) + snd overall_stats.(0)))
+    (100. *. float_of_int (fst overall_stats.(1))
+    /. float_of_int (fst overall_stats.(1) + snd overall_stats.(1)))
+    (100. *. float_of_int (snd overall_stats.(1))
+    /. float_of_int (fst overall_stats.(1) + snd overall_stats.(1))) ;
   calc_estimation 10000000 pending_priority ;
   calc_estimation 15000000 pending_priority ;
   calc_estimation 20000000 pending_priority ;
