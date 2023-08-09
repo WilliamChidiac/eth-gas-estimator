@@ -145,8 +145,32 @@ let print_compare ?(by_priority = true) key =
            (print_in a_pf)
            (Option.value ~default:(-1) tx.transaction_index)) ;
       print_tx_index sub_accepted in
+  let mev_builder_in =
+    100.
+    *. float_of_int (fst overall_stats.(0))
+    /. float_of_int (fst overall_stats.(0) + snd overall_stats.(0)) in
+  let mev_builder_out =
+    100.
+    *. float_of_int (snd overall_stats.(0))
+    /. float_of_int (fst overall_stats.(0) + snd overall_stats.(0)) in
+  let normal_builder_in =
+    100.
+    *. float_of_int (fst overall_stats.(1))
+    /. float_of_int (fst overall_stats.(1) + snd overall_stats.(1)) in
+  let normal_builder_out =
+    100.
+    *. float_of_int (snd overall_stats.(1))
+    /. float_of_int (fst overall_stats.(1) + snd overall_stats.(1)) in
 
   let calc_estimation podium pending_l =
+    let podium =
+      int_of_float
+        (float_of_int podium /. 100.
+        *.
+        if is_block_builder block_header then
+          mev_builder_in
+        else
+          normal_builder_in) in
     let rec calc_tests pending_list gu index =
       match pending_list with
       | [] -> Format.eprintf "nombre total de gas: %d\n@." gu
@@ -202,18 +226,7 @@ let print_compare ?(by_priority = true) key =
     (int_of_string block_header.gas_used)
     !intersection !block_not_mempool (List.length pending)
     (is_block_builder block_header)
-    (100.
-    *. float_of_int (fst overall_stats.(0))
-    /. float_of_int (fst overall_stats.(0) + snd overall_stats.(0)))
-    (100.
-    *. float_of_int (snd overall_stats.(0))
-    /. float_of_int (fst overall_stats.(0) + snd overall_stats.(0)))
-    (100.
-    *. float_of_int (fst overall_stats.(1))
-    /. float_of_int (fst overall_stats.(1) + snd overall_stats.(1)))
-    (100.
-    *. float_of_int (snd overall_stats.(1))
-    /. float_of_int (fst overall_stats.(1) + snd overall_stats.(1))) ;
+    mev_builder_in mev_builder_out normal_builder_in normal_builder_out ;
   calc_estimation 10000000 pending_priority ;
   calc_estimation 15000000 pending_priority ;
   calc_estimation 20000000 pending_priority ;
@@ -233,5 +246,4 @@ let print_stats ?(compare = by_priority) () =
   if !snap_shot_id > 1 then (
     print_compare (!snap_shot_id - 1) ~by_priority:compare ;
     remove_snapshot (!snap_shot_id - 2)
-  ) else
-    ()
+  )
