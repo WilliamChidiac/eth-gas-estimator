@@ -15,3 +15,5 @@ let min_gp = Z.of_int 11_000_000_000
 let max_gu = 500_000
 
 let gwei = true
+
+let verbosity_filter = ref Common_types.Quiet

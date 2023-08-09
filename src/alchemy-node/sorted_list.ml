@@ -76,12 +76,14 @@ let process_pending_tx tx mempool =
     let x = compare tx.tx_nonce min_nonce_tx.tx_nonce in
     if x < 0 then
       if tx_pf < mempool.pool_min_pf then (
-        Format.eprintf "lower nonce , low gas price@." ;
+        Utilities.log ~verbosity:!Constant.verbosity_filter
+          "lower nonce , low gas price@." ;
         Mutex.lock mempool.mutex_account ;
         Hashtbl.replace mempool.blacklist tx.from (tx :: txs, age) ;
         Mutex.unlock mempool.mutex_account
       ) else (
-        Format.eprintf "lower nonce, good gas price@." ;
+        Utilities.log ~verbosity:!Constant.verbosity_filter
+          "lower nonce, acceptable gas price@." ;
         add_tx tx mempool
       )
     else if x = 0 then (
@@ -89,17 +91,20 @@ let process_pending_tx tx mempool =
         let waiting_list = tx :: List.tl txs in
         let rec unban = function
           | [] ->
-            Format.eprintf "same nonce, unban account@." ;
+            Utilities.log ~verbosity:!Constant.verbosity_filter
+              "same nonce, unban account@." ;
             Mutex.lock mempool.mutex_account ;
             Hashtbl.remove mempool.blacklist tx.from ;
             Mutex.unlock mempool.mutex_account
           | t :: sub_waiting as wl ->
             if calc_priority_fee t >= mempool.pool_min_pf then (
-              Format.eprintf "same nonce, unban transaction@." ;
+              Utilities.log ~verbosity:!Constant.verbosity_filter
+                "same nonce, unban transaction@." ;
               add_tx t mempool ;
               unban sub_waiting
             ) else (
-              Format.eprintf "same nonce, higher gas price@." ;
+              Utilities.log ~verbosity:!Constant.verbosity_filter
+                "same nonce, higher gas price@." ;
               Mutex.lock mempool.mutex_account ;
               Hashtbl.replace mempool.blacklist tx.from (wl, age) ;
               Mutex.unlock mempool.mutex_account
