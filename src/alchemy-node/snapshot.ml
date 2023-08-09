@@ -211,7 +211,11 @@ let print_compare ?(by_priority = true) key =
      base fee = %s \n\
      gas used = %d \n\
      tx in mempool and block = %d \n\
-     tx in block but not in mempool = %d \n\n\
+     tx in block but not in mempool = %d \n\
+     percentage of tx in block that you had over the total number tx in the \
+     block that you could've had = %.2f %% \n\
+     percentage of tx in block that you had over number of tx in block = %.2f \
+     %%\n\n\
      overall stats : \n\
      mempool length = %d \n\
      block builder = %b \n\n\
@@ -224,7 +228,10 @@ let print_compare ?(by_priority = true) key =
      @."
     block_number (print_in bf)
     (int_of_string block_header.gas_used)
-    !intersection !block_not_mempool (List.length pending)
+    !intersection !block_not_mempool
+    (float_of_int !intersection /. !Sorted_list.inter *. 100.)
+    (float_of_int !intersection /. !Sorted_list.total *. 100.)
+    (List.length pending)
     (is_block_builder block_header)
     mev_builder_in mev_builder_out normal_builder_in normal_builder_out ;
   calc_estimation 10000000 pending_priority ;
