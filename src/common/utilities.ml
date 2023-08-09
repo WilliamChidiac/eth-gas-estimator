@@ -72,7 +72,7 @@ let calc_priority_fee bf tx =
       (Tx_type_undefined (Printf.sprintf "Unknown type of transaction : %d" x))
 (**[min_gas_price bf] given a base fee, this function returns the minimum gas price that a sender should input to consider adding it's transaction in out mempool. 
     this function is mainly used to blakclist the accounts and filter the mempool.*)
-let min_gas_price bf =
+let min_priority_fee bf =
   let rate = Q.of_float 0.94166666 in
   let power x n =
     let rec aux n i =
@@ -81,7 +81,7 @@ let min_gas_price bf =
       else
         aux (n - 1) Q.(i * x) in
     aux n (Q.of_int 1) in
-  Q.to_bigint Q.((power rate 4) * Q.of_bigint bf)
+  Z.((Q.to_bigint Q.((power rate 4) * Q.of_bigint bf)) - bf)
 
 let set_verbose v =
   begin

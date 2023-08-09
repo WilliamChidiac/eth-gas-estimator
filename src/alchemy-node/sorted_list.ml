@@ -3,13 +3,13 @@ open Utilities
 open Common_types
 open Constant
 
-type 'a tx_pool = {
+type tx_pool = {
   mutable pending : (transaction * int) list;
-  blacklist : (address, bint * int) Hashtbl.t;
+  blacklist : (address, transaction list * int) Hashtbl.t;
   mutex_pending : Mutex.t;
   mutex_account : Mutex.t;
   mutable current_base_fee : Z.t;
-  mutable pool_min_gp : Z.t;
+  mutable pool_min_pf : Z.t;
 }
 
 let empty =
@@ -19,7 +19,7 @@ let empty =
     mutex_pending = Mutex.create ();
     mutex_account = Mutex.create ();
     current_base_fee = Z.of_int 0;
-    pool_min_gp = min_gp;
+    pool_min_pf = min_gp;
   }
 
 (**sorted lists*)
@@ -69,7 +69,7 @@ let add_tx tx mempool =
     and adds the transaction to the mempool if it has valid inputs 
     or blacklist the sender's address if it is not already blacklisted.*)
 let process_pending_tx tx mempool =
-  let tx_gp = tx.gas_price in
+  let tx_pf = calc_priority_fee tx in
   try
     let nonce, age = Hashtbl.find mempool.blacklist tx.from in
     if tx.tx_nonce < nonce then (
@@ -78,7 +78,7 @@ let process_pending_tx tx mempool =
       Mutex.unlock mempool.mutex_account
     )
   with Not_found ->
-    if tx_gp < mempool.pool_min_gp then (
+    if tx_pf < mempool.pool_min_pf then (
       Mutex.lock mempool.mutex_account ;
       Hashtbl.add mempool.blacklist tx.from (tx.tx_nonce, 0) ;
       Mutex.unlock mempool.mutex_account ;
