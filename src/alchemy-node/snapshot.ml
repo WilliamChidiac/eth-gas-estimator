@@ -145,6 +145,23 @@ let print_compare ?(by_priority = true) key =
            (print_in a_pf)
            (Option.value ~default:(-1) tx.transaction_index)) ;
       print_tx_index sub_accepted in
+  Format.eprintf
+    "block number = %d \n\
+     base fee = %s \n\
+     gas used = %d \n\
+     |              |Pending txs|accepted txs| @." block_number (print_in bf)
+    (int_of_string block_header.gas_used) ;
+  if by_priority = true then
+    print_priority pending_priority accepted_priority 0 0
+  else
+    print_tx_index accepted_tx_index ;
+
+  let id, (inter, bar) =
+    if is_block_builder block_header then
+      (0, overall_stats.(0))
+    else
+      (1, overall_stats.(1)) in
+  overall_stats.(id) <- (!intersection + inter, !block_not_mempool + bar) ;
   let mev_builder_in =
     100.
     *. float_of_int (fst overall_stats.(0))
@@ -189,23 +206,6 @@ let print_compare ?(by_priority = true) key =
           calc_tests l_aux (gu + fuel) (index + 1) in
     calc_tests pending_l 0 0 in
 
-  Format.eprintf
-    "block number = %d \n\
-     base fee = %s \n\
-     gas used = %d \n\
-     |              |Pending txs|accepted txs| @." block_number (print_in bf)
-    (int_of_string block_header.gas_used) ;
-  if by_priority = true then
-    print_priority pending_priority accepted_priority 0 0
-  else
-    print_tx_index accepted_tx_index ;
-
-  let id, (inter, bar) =
-    if is_block_builder block_header then
-      (0, overall_stats.(0))
-    else
-      (1, overall_stats.(1)) in
-  overall_stats.(id) <- (!intersection + inter, !block_not_mempool + bar) ;
   Format.eprintf
     "block number = %d \n\
      base fee = %s \n\
