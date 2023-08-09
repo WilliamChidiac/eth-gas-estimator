@@ -2,7 +2,7 @@ let verbose = ref Common_types.Default
 
 let estimate = Q.of_float 15000000.
 
-let max_coeff = Q.of_float 12.5
+let max_coeff = Q.of_float 0.125
 
 let delta_pending_tx = 4
 
