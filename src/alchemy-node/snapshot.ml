@@ -90,10 +90,10 @@ let print_compare ?(by_priority = true) key =
       let a_pf = calc_priority_fee bf accepted_tx in
       if accepted_tx.tx_hash = pending_tx.tx_hash then (
         Format.eprintf
-          "|index in list |    %d    |    %d    | \n\
-           |priority fees | %s | %s | \n\
-           |transaction id|          |    %d    | \n\
-           --------------------------------------------------------------------------------------------------@."
+          "|index in list |    %.3d    |    %.3d    | \n\
+           |priority fees |  %s  |  %s  | \n\
+           |transaction id|           |    %.3d    | \n\
+           ----------------------------------------@."
           index_pending index_accept (print_in p_pf) (print_in a_pf)
           (Option.value ~default:(-1) accepted_tx.transaction_index) ;
         intersection := !intersection + 1 ;
@@ -101,19 +101,19 @@ let print_compare ?(by_priority = true) key =
           (index_accept + 1)
       ) else if compare_by_priority_fee bf pending_tx accepted_tx < 0 then (
         Format.eprintf
-          "|index in list |    %d    |           | \n\
-           |priority fees | %s |           | \n\
-           |hash          | %s | \n\
-           --------------------------------------------------------------------------------------------------@."
+          "|index in list |    %.3d    |            | \n\
+           |priority fees |  %s  |            | \n\
+           |hash          | %s  \n\
+           ----------------------------------------@."
           index_pending (print_in p_pf)
           (EzEncoding.construct b_enc pending_tx.tx_hash) ;
         print_priority sub_pending accepted (index_pending + 1) index_accept
       ) else (
         Format.eprintf
-          "|index in list |          |    %d    | \n\
-           |priority fees |          | %s | \n\
-           |transaction_id|          |    %d    | \n\
-           --------------------------------------------------------------------------------------------------@."
+          "|index in list |           |    %.3d    | \n\
+           |priority fees |           |  %s  | \n\
+           |transaction_id|           |    %.3d    | \n\
+           ----------------------------------------@."
           index_accept (print_in a_pf)
           (Option.value ~default:(-1) accepted_tx.transaction_index) ;
         print_priority pending sub_accepted index_pending (index_accept + 1)
