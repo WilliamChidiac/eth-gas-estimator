@@ -71,29 +71,73 @@ let add_tx tx mempool =
 let process_pending_tx tx mempool =
   let tx_pf = calc_priority_fee tx in
   try
-    let nonce, age = Hashtbl.find mempool.blacklist tx.from in
-    if tx.tx_nonce < nonce then (
+    let txs, age = Hashtbl.find mempool.blacklist tx.from in
+    let min_nonce_tx = List.hd txs in
+    let x = compare tx.tx_nonce min_nonce_tx.tx_nonce in
+    if x < 0 then
+      if tx_pf < mempool.pool_min_pf then (
+        Format.eprintf "lower nonce , low gas price@." ;
+        Mutex.lock mempool.mutex_account ;
+        Hashtbl.replace mempool.blacklist tx.from (tx :: txs, age) ;
+        Mutex.unlock mempool.mutex_account
+      ) else (
+        Format.eprintf "lower nonce, good gas price@." ;
+        add_tx tx mempool
+      )
+    else if x = 0 then (
+      if calc_priority_fee min_nonce_tx < calc_priority_fee tx then
+        let waiting_list = tx :: List.tl txs in
+        let rec unban = function
+          | [] ->
+            Format.eprintf "same nonce, unban account@." ;
+            Mutex.lock mempool.mutex_account ;
+            Hashtbl.remove mempool.blacklist tx.from ;
+            Mutex.unlock mempool.mutex_account
+          | t :: sub_waiting as wl ->
+            if calc_priority_fee t >= mempool.pool_min_pf then (
+              Format.eprintf "same nonce, unban transaction@." ;
+              add_tx t mempool ;
+              unban sub_waiting
+            ) else (
+              Format.eprintf "same nonce, higher gas price@." ;
+              Mutex.lock mempool.mutex_account ;
+              Hashtbl.replace mempool.blacklist tx.from (wl, age) ;
+              Mutex.unlock mempool.mutex_account
+            ) in
+        unban waiting_list
+    ) else if x > 0 then (
+      let rec insert x = function
+        | [] -> [x]
+        | h :: t as l ->
+          if x.tx_nonce <= h.tx_nonce then
+            x :: l
+          else
+            h :: insert x t in
       Mutex.lock mempool.mutex_account ;
-      Hashtbl.replace mempool.blacklist tx.from (tx.tx_nonce, age) ;
+      Hashtbl.replace mempool.blacklist tx.from (insert tx txs, age) ;
       Mutex.unlock mempool.mutex_account
     )
   with Not_found ->
     if tx_pf < mempool.pool_min_pf then (
       Mutex.lock mempool.mutex_account ;
-      Hashtbl.add mempool.blacklist tx.from (tx.tx_nonce, 0) ;
+      Hashtbl.add mempool.blacklist tx.from ([tx], 0) ;
       Mutex.unlock mempool.mutex_account ;
       Mutex.lock mempool.mutex_pending ;
       mempool.pending <-
         List.filter
           (fun pair ->
-            if (fst pair).from <> tx.from then
-              true
+            if (fst pair).from = tx.from && (fst pair).tx_nonce > 0 then
+              false
             else
-              false)
+              true)
           mempool.pending ;
       Mutex.unlock mempool.mutex_pending
     ) else
       add_tx tx mempool
+
+let inter = ref 0
+
+let total = ref 0
 
 (**[remove_tx tx mempool] used to remove a mined transaction from the mempool*)
 let remove_tx tx mempool =
@@ -101,11 +145,13 @@ let remove_tx tx mempool =
     match l with
     | [] -> []
     | e :: subl ->
-      if (fst e).tx_nonce = tx.tx_nonce && (fst e).from = tx.from then
+      if (fst e).tx_nonce = tx.tx_nonce && (fst e).from = tx.from then (
+        inter := !inter + 1 ;
         rm_tx tx subl
-      else
+      ) else
         e :: rm_tx tx subl in
   Mutex.lock mempool.mutex_pending ;
+  total := !total + 1 ;
   mempool.pending <- rm_tx tx mempool.pending ;
   Mutex.unlock mempool.mutex_pending
 
@@ -140,11 +186,13 @@ let update_blacklist_age mempool =
     and stores it in mempool.current_base_fee.*)
 let update_base_fee mempool (bf : block_header) =
   mempool.current_base_fee <- Utilities.newBaseFee bf ;
-  mempool.pool_min_gp <- Utilities.min_gas_price mempool.current_base_fee
+  mempool.pool_min_pf <- Utilities.min_priority_fee mempool.current_base_fee
 
 (**[update_mempool mempool bf] wrapper of all the update functions. 
     this function should be called every time a new block is published*)
 let update_mempool mempool (bf : block_header) =
+  total := 0 ;
+  inter := 0 ;
   update_base_fee mempool bf ;
   update_pending_age mempool ;
   update_blacklist_age mempool
