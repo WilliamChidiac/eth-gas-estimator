@@ -19,7 +19,7 @@ let empty =
     mutex_pending = Mutex.create ();
     mutex_account = Mutex.create ();
     current_base_fee = Z.of_int 0;
-    pool_min_pf = min_gp;
+    pool_min_pf = min_pf ;
   }
 
 (**sorted lists*)

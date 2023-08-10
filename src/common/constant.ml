@@ -10,7 +10,7 @@ let delta_account = 3
 
 let refresh_rate = ref 10.
 
-let min_gp = Z.of_int 11_000_000_000
+let min_pf = Z.of_int 0 
 
 let max_gu = 500_000
 
