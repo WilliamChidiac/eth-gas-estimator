@@ -93,3 +93,10 @@ type response =
   | Data of data
   | Connection of conn
 [@@deriving encoding]
+
+type lifespans = {
+  mutable delta_pending_tx : int; [@key "delta_pending"]
+  mutable delta_account : int; [@key "delta_account"]
+  mutable delta_snapshot : int; [@key "delta_snapshot"]
+}
+[@@deriving encoding]

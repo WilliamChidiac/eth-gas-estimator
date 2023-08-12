@@ -167,7 +167,7 @@ let update_pending_age mempool =
   let rec aux = function
     | [] -> []
     | e :: sub_l ->
-      if snd e >= delta_pending_tx then
+      if snd e >= lifespan.delta_pending_tx then
         aux sub_l
       else
         (fst e, snd e + 1) :: aux sub_l in
@@ -180,7 +180,7 @@ let update_blacklist_age mempool =
   Mutex.lock mempool.mutex_account ;
   Hashtbl.iter
     (fun key value ->
-      if snd value >= delta_account then
+      if snd value >= lifespan.delta_account then
         Hashtbl.remove mempool.blacklist key
       else
         Hashtbl.replace mempool.blacklist key (fst value, snd value + 1))

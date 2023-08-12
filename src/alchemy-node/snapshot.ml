@@ -252,5 +252,5 @@ let by_tx_index = false
 let print_stats ?(compare = by_priority) () =
   if !snap_shot_id > 1 then (
     print_compare (!snap_shot_id - 1) ~by_priority:compare ;
-    remove_snapshot (!snap_shot_id - 2)
+    remove_snapshot (!snap_shot_id - Constant.lifespan.delta_snapshot)
   )
