@@ -51,20 +51,20 @@ let react _ s =
         match d with
         | Pending_transaction t ->
           Sorted_list.process_pending_tx t Sorted_list.mempool ;
-          Lwt.return ()
+          Lwt.return_unit
         | Mined_transaction t ->
           Snapshot.snapshot_mined t.tx_tx ;
           Sorted_list.remove_tx t.tx_tx Sorted_list.mempool ;
-          Lwt.return ()
+          Lwt.return_unit
         | Block_header b ->
           Snapshot.erase_block () ;
           Snapshot.snapshot_header b ;
           Sorted_list.update_mempool Sorted_list.mempool b ;
           let time = Unix.gettimeofday () -. Int64.to_float b.timestamp in
-          Lwt_unix.sleep (12. -. time) >>= fun _ ->
+          Lwt_unix.sleep (18. -. time) >>= fun _ ->
           Snapshot.snapshot_state Sorted_list.mempool.pending ;
           Snapshot.print_stats () ;
-          Lwt.return ()))
+          Lwt.return_unit))
     (fun exn -> Format.eprintf "exn:%s\n\n@." (Printexc.to_string exn)) ;
   Lwt.return (Ok ())
 
@@ -77,7 +77,6 @@ let rec refresh period = Lwt_unix.sleep period >>= fun _ -> refresh period
 (**[request ()] connects to the websocket,
      send all the wanted subscription 
      then calls the refresh function to loop infinitly*)
-
 let request () =
   begin
     Printf.printf "Connecting to %s\n%!" uri ;
