@@ -47,4 +47,5 @@ pin-depends: [
   [ "efunc.dev" "git+https://gitlab.com/functori/dev/efunc.git" ]
   [ "ppx_deriving_arg.dev" "git+https://gitlab.com/functori/dev/ppx_deriving_arg.git" ]
   [ "ppx_deriving_encoding.dev" "git+https://gitlab.com/o-labs/ppx_deriving_encoding" ]
+  [ "ez_api.dev" "git+https://github.com/ocamlpro/ez_api"]
 ]
