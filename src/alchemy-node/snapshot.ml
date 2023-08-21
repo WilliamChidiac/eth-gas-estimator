@@ -254,3 +254,34 @@ let print_stats ?(compare = by_priority) () =
     print_compare (!snap_shot_id - 1) ~by_priority:compare ;
     remove_snapshot (!snap_shot_id - Constant.lifespan.delta_snapshot)
   )
+
+type pool = Sorted_list.tx_pool
+
+let estimate_priority podium (mempool : pool) =
+  let bf = mempool.current_base_fee in
+  let pending_l =
+    List.fast_sort
+      (fun (e1, _) (e2, _) -> compare_by_priority_fee bf e1 e2)
+      mempool.pending in
+  let mev_builder_in =
+    float_of_int (fst overall_stats.(0))
+    /. float_of_int (fst overall_stats.(0) + snd overall_stats.(0)) in
+  Format.eprintf "mev_builder = %.2f" mev_builder_in ;
+  let rec calc_tests pending_list gu index =
+    match pending_list with
+    | [] -> Z.of_int 10_000_000
+    | (e, _lifespan) :: l_aux ->
+      if gu > podium then
+        let x = calc_priority_fee bf e in
+        if x > Z.of_int 0 then
+          x
+        else
+          Z.of_int 10_000_000
+      else
+        let fuel =
+          if e.gas < Constant.max_gu then
+            e.gas
+          else
+            Constant.max_gu in
+        calc_tests l_aux (gu + fuel) (index + 1) in
+  calc_tests pending_l 0 0
