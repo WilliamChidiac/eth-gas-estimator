@@ -139,9 +139,9 @@ let process_pending_tx tx mempool =
     ) else
       add_tx tx mempool
 
-let inter = ref 0.
+let inter = ref 0
 
-let total = ref 0.
+let total = ref 0
 
 (**[remove_tx tx mempool] used to remove a mined transaction from the mempool*)
 let remove_tx tx mempool =
@@ -150,12 +150,12 @@ let remove_tx tx mempool =
     | [] -> []
     | e :: subl ->
       if (fst e).tx_nonce = tx.tx_nonce && (fst e).from = tx.from then (
-        inter := !inter +. 1. ;
+        inter := !inter + 1 ;
         rm_tx tx subl
       ) else
         e :: rm_tx tx subl in
   Mutex.lock mempool.mutex_pending ;
-  total := !total +. 1. ;
+  total := !total + 1 ;
   mempool.pending <- rm_tx tx mempool.pending ;
   Mutex.unlock mempool.mutex_pending
 
@@ -195,8 +195,8 @@ let update_base_fee mempool (bf : block_header) =
 (**[update_mempool mempool bf] wrapper of all the update functions. 
     this function should be called every time a new block is published*)
 let update_mempool mempool (bf : block_header) =
-  total := 0. ;
-  inter := 0. ;
+  total := 0 ;
+  inter := 0 ;
   update_base_fee mempool bf ;
   update_pending_age mempool ;
   update_blacklist_age mempool
