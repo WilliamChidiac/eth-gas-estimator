@@ -76,6 +76,13 @@ let calc_priority_fee bf tx =
     raise
       (Tx_type_undefined (Printf.sprintf "Unknown type of transaction : %d" x))
 
+let compare_by_priority_fee bf a b =
+  let x = compare (calc_priority_fee bf b) (calc_priority_fee bf a) in
+  if x = 0 then
+    compare b.tx_hash a.tx_hash
+  else
+    x
+
 (**[min_gas_price bf] given a base fee, this function returns the minimum gas price that a sender should input to consider adding it's transaction in out mempool. 
     this function is mainly used to blakclist the accounts and filter the mempool.*)
 let min_priority_fee bf =

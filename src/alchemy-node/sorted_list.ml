@@ -35,8 +35,7 @@ let mempool = empty
 let calc_priority_fee ?(bf = mempool.current_base_fee) = calc_priority_fee bf
 
 (**[compare_by_priority_fee a b] helps comparing 2 transaction for sorting and filtering purposes*)
-let compare_by_priority_fee a b =
-  compare (calc_priority_fee b) (calc_priority_fee a)
+let compare_by_priority_fee = compare_by_priority_fee mempool.current_base_fee
 
 (**[sort_by_priority_fee list] sorts a list of (transaction, transaction_age) in a decreasing order of the priority fees*)
 let sort_by_priority_fee list =
