@@ -63,7 +63,7 @@ let react _ s =
           let time = Unix.gettimeofday () -. Int64.to_float b.timestamp in
           Lwt_unix.sleep (18. -. time) >>= fun _ ->
           Snapshot.snapshot_state Sorted_list.mempool.pending ;
-          Snapshot.print_stats () ;
+          Snapshot.filter_stats () ;
           Lwt.return_unit))
     (fun exn -> Format.eprintf "exn:%s\n\n@." (Printexc.to_string exn)) ;
   Lwt.return (Ok ())
