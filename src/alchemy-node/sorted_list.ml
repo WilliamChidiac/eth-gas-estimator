@@ -39,7 +39,8 @@ let compare_by_priority_fee = compare_by_priority_fee mempool.current_base_fee
 
 (**[sort_by_priority_fee list] sorts a list of (transaction, transaction_age) in a decreasing order of the priority fees*)
 let sort_by_priority_fee list =
-  let sort_by comp list = List.sort (fun a b -> comp (fst a) (fst b)) list in
+  let sort_by comp list =
+    List.sort (fun (tx_a, _age_a) (tx_b, _age_b) -> comp tx_a tx_b) list in
   sort_by compare_by_priority_fee list
 
 (**[add_tx tx mempool] add a pending transaction [tx] in the [mempool],
@@ -50,15 +51,14 @@ let add_tx tx mempool =
   let rec aux l =
     match l with
     | [] -> [(tx, 0)]
-    | pair :: sub_l ->
-      let t = fst pair in
+    | (t, age) :: sub_l ->
       if t.from = tx.from && t.tx_nonce = tx.tx_nonce then
         if calc_priority_fee t < calc_priority_fee tx then
           (tx, 0) :: sub_l
         else
           l
       else
-        pair :: aux sub_l in
+        (t, age) :: aux sub_l in
   Mutex.lock mempool.mutex_pending ;
   mempool.pending <- aux mempool.pending ;
   Mutex.unlock mempool.mutex_pending
@@ -129,8 +129,8 @@ let process_pending_tx tx mempool =
       Mutex.lock mempool.mutex_pending ;
       mempool.pending <-
         List.filter
-          (fun pair ->
-            if (fst pair).from = tx.from && (fst pair).tx_nonce > 0 then
+          (fun (transaction, _age) ->
+            if transaction.from = tx.from && transaction.tx_nonce > 0 then
               false
             else
               true)
@@ -148,12 +148,12 @@ let remove_tx tx mempool =
   let rec rm_tx tx l =
     match l with
     | [] -> []
-    | e :: subl ->
-      if (fst e).tx_nonce = tx.tx_nonce && (fst e).from = tx.from then (
+    | (transaction, age) :: subl ->
+      if transaction.tx_nonce = tx.tx_nonce && transaction.from = tx.from then (
         inter := !inter + 1 ;
         rm_tx tx subl
       ) else
-        e :: rm_tx tx subl in
+        (transaction, age) :: rm_tx tx subl in
   Mutex.lock mempool.mutex_pending ;
   total := !total + 1 ;
   mempool.pending <- rm_tx tx mempool.pending ;
@@ -165,11 +165,11 @@ let remove_tx tx mempool =
 let update_pending_age mempool =
   let rec aux = function
     | [] -> []
-    | e :: sub_l ->
-      if snd e >= lifespan.delta_pending_tx then
+    | (tx, age) :: sub_l ->
+      if age >= lifespan.delta_pending_tx then
         aux sub_l
       else
-        (fst e, snd e + 1) :: aux sub_l in
+        (tx, age + 1) :: aux sub_l in
   mempool.pending <- aux mempool.pending
 
 (**[update_blacklist_age mempool] updates the age of the blacklisted addresses. 
@@ -178,11 +178,11 @@ let update_blacklist_age mempool =
   let aux_tbl = Hashtbl.copy mempool.blacklist in
   Mutex.lock mempool.mutex_account ;
   Hashtbl.iter
-    (fun key value ->
-      if snd value >= lifespan.delta_account then
+    (fun key (txs, account_age) ->
+      if account_age >= lifespan.delta_account then
         Hashtbl.remove mempool.blacklist key
       else
-        Hashtbl.replace mempool.blacklist key (fst value, snd value + 1))
+        Hashtbl.replace mempool.blacklist key (txs, account_age + 1))
     aux_tbl ;
   Mutex.unlock mempool.mutex_account
 

@@ -137,7 +137,7 @@ let incr_id () =
 
 let snapshot_mempool pool =
   Hashtbl.add snap_shot.mempools snap_shot.id
-    (List.fold_left (fun a (tx, _life) -> tx :: a) [] pool)
+    (List.fold_left (fun a (tx, _age) -> tx :: a) [] pool)
 
 let snapshot_state pool =
   let stats = init_stats () in
