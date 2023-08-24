@@ -53,6 +53,50 @@ let post_update_lifespan _req updated_lifespan =
     name = "change_snapshot_storage";
   }]
 
+let block_number = EzAPI.Param.int ~name:"block_number" "block_number"
+
+type no_stats = { error_message : string [@key "error"] } [@@deriving encoding]
+
+type stats_resp =
+  | Valid of Snapshot.local_stats
+  | Error of no_stats
+[@@deriving encoding]
+
+let get_stats req () =
+  let id = EzAPI.Req.find_param block_number req in
+  EzAPIServer.return_ok
+    (match id with
+    | None -> failwith "required parameter missing: block_number"
+    | Some x -> (
+      let x = int_of_string x in
+      match Hashtbl.find_opt Snapshot.snap_shot.stats x with
+      | None ->
+        if x < Snapshot.snap_shot.id then
+          Error
+            {
+              error_message =
+                "this block is to old to be in scope of the program";
+            }
+        else
+          Error { error_message = "this block has not been captured yet." }
+      | Some stats -> Valid stats))
+[@@get
+  {
+    path = "/get_stats_of_block";
+    output = stats_resp_enc;
+    params = [block_number];
+    name = "get_stats_of_block";
+  }]
+
+let get_global_stats _req () = EzAPIServer.return_ok Snapshot.global
+[@@get
+  {
+    path = "/get_overall_stats";
+    output = Snapshot.overall_stats_enc;
+    params = [];
+    name = "get_overall_stats";
+  }]
+
 let init_server () =
   EzAPIServer.set_verbose 3 ;
   EzLwtSys.run @@ fun () ->
