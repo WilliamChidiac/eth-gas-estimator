@@ -37,13 +37,13 @@ let get_lifespan _req () = EzAPIServer.return_ok Constant.lifespan
 let post_update_lifespan _req updated_lifespan =
   let match_input input to_change =
     match (to_change, input) with
-    | 0, Some x -> Constant.lifespan.delta_snapshot <- x
+    | 0, Some x -> Constant.lifespan.delta_pending_tx <- x
     | 1, Some x -> Constant.lifespan.delta_account <- x
     | 2, Some x -> Constant.lifespan.delta_snapshot <- x
     | _, _ -> () in
-  match_input updated_lifespan.snapshots 2 ;
   match_input updated_lifespan.pending_txs 0 ;
   match_input updated_lifespan.blacklist 1 ;
+  match_input updated_lifespan.snapshots 2 ;
   EzAPIServer.return_ok "changes applied"
 [@@post
   {
