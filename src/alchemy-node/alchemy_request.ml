@@ -4,10 +4,6 @@ open Sorted_list
 open Utilities
 open Constant
 
-(*api keys :
-    2U2G7QNmIh3oQIkCUS7EDAYqHmAoPRVb
-    ytvWudRFU7i34JtwGZqu9MAynm_sUhK1
-*)
 let uri = "wss://eth-mainnet.g.alchemy.com/v2/ytvWudRFU7i34JtwGZqu9MAynm_sUhK1"
 
 (* alchemy_minedTransactions :  return all the transaction in a newBlock
