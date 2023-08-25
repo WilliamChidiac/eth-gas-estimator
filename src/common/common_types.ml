@@ -27,6 +27,10 @@ type command =
 [@@deriving arg]
 
 type config = {
+  delta_transaction : int; [@dft 4] [@key "delta-tx"]
+  delta_account : int; [@dft 3] [@key "delta-acc"]
+  delta_snapshot : int; [@dft 5] [@key "delta-snapshot"]
+  delay_snapshot : float; [@dft 4.0] [@key "delay-snapshot"]
   opt_node_url : string option; [@dft None] [@key "node-url"]
   verbose : int; [@dft 1] [@global]
   command : command;
