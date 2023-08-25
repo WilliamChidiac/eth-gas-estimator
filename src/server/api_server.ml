@@ -53,6 +53,19 @@ let post_update_lifespan _req updated_lifespan =
     name = "change_snapshot_storage";
   }]
 
+type post_delay = { new_delay : float [@key "delay"] } [@@deriving encoding]
+
+let post_update_snapshot_delay _req updated_delay =
+  Constant.snapshot_delay := updated_delay.new_delay ;
+  EzAPIServer.return_ok "changes applied"
+[@@post
+  {
+    path = "/change_snapshot_storage";
+    output = Json_encoding.string;
+    input = post_delay_enc;
+    name = "change_snapshot_storage";
+  }]
+
 let block_number = EzAPI.Param.int ~name:"block_number" "block_number"
 
 type no_stats = { error_message : string [@key "error"] } [@@deriving encoding]

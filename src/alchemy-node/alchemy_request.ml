@@ -57,7 +57,7 @@ let react _ s =
           Snapshot.snapshot_header b ;
           Sorted_list.update_mempool Sorted_list.mempool b ;
           let time = Unix.gettimeofday () -. Int64.to_float b.timestamp in
-          Lwt_unix.sleep (snapshot_delay -. time) >>= fun _ ->
+          Lwt_unix.sleep (!snapshot_delay -. time) >>= fun _ ->
           Snapshot.snapshot_state Sorted_list.mempool.pending ;
           Snapshot.filter_stats () ;
           Lwt.return_unit))
