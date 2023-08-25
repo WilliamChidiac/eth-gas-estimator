@@ -60,10 +60,10 @@ let post_update_snapshot_delay _req updated_delay =
   EzAPIServer.return_ok "changes applied"
 [@@post
   {
-    path = "/change_snapshot_storage";
+    path = "/change_snapshot_delay";
     output = Json_encoding.string;
     input = post_delay_enc;
-    name = "change_snapshot_storage";
+    name = "change_snapshot_delay";
   }]
 
 let block_number = EzAPI.Param.int ~name:"block_number" "block_number"
