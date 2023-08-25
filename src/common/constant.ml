@@ -17,3 +17,5 @@ let gwei = true
 let verbosity_filter = ref Common_types.Quiet
 
 let lifespan = { delta_pending_tx = 4; delta_account = 3; delta_snapshot = 5 }
+
+let snapshot_delay = 4. 
