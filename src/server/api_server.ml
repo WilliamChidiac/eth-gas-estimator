@@ -136,7 +136,7 @@ let get_global_stats _req () = EzAPIServer.return_ok Snapshot.global
   }]
 
 let init_server () =
-  EzAPIServer.set_verbose 3 ;
+  Utilities.log ~verbosity:Common_types.Trace "initializing server@." ;
   EzLwtSys.run @@ fun () ->
   let port = 8080 in
   EzAPIServer.(server [(port, API ppx_dir)])
