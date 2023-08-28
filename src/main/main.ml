@@ -6,6 +6,7 @@ let main conf =
   Constant.lifespan.delta_account <- conf.delta_account ;
   Constant.lifespan.delta_pending_tx <- conf.delta_transaction ;
   Constant.snapshot_delay := conf.delay_snapshot ;
+  Constant.block_bs := conf.mev_builders ;
   Utilities.log ~verbosity:Trace "Main.main > verbose: %d@." conf.verbose ;
   match conf.command with
   | Vanilla vanilla_options ->
