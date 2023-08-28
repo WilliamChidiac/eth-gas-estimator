@@ -1,6 +1,7 @@
 let main conf =
   let open Common_types in
   let verbosity = Utilities.set_verbose conf.verbose in
+  Constant.url := Option.value ~default:!Constant.url conf.opt_node_url ;
   Constant.lifespan.delta_snapshot <- conf.delta_snapshot ;
   Constant.lifespan.delta_account <- conf.delta_account ;
   Constant.lifespan.delta_pending_tx <- conf.delta_transaction ;

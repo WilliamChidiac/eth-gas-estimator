@@ -4,7 +4,7 @@ open Sorted_list
 open Utilities
 open Constant
 
-let uri = "wss://eth-mainnet.g.alchemy.com/v2/ytvWudRFU7i34JtwGZqu9MAynm_sUhK1"
+let uri = !Constant.url
 
 (* alchemy_minedTransactions :  return all the transaction in a newBlock
    alchemy_pendingTransactions : return all the pending transaction in the mempool

@@ -2,6 +2,9 @@ open Common_types
 
 let verbose = ref Common_types.Default
 
+let url =
+  ref "wss://eth-mainnet.g.alchemy.com/v2/ytvWudRFU7i34JtwGZqu9MAynm_sUhK1"
+
 let estimate = Q.of_float 15000000.
 
 let max_coeff = Q.of_float 0.125
