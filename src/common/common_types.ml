@@ -27,6 +27,11 @@ type command =
 [@@deriving arg]
 
 type config = {
+  delta_transaction : int; [@dft 4] [@key "delta-tx"]
+  delta_account : int; [@dft 3] [@key "delta-acc"]
+  delta_snapshot : int; [@dft 5] [@key "delta-snapshot"]
+  delay_snapshot : float; [@dft 4.0] [@key "delay-snapshot"]
+  mev_builders : string list; [@key "block-builders"]
   opt_node_url : string option; [@dft None] [@key "node-url"]
   verbose : int; [@dft 1] [@global]
   command : command;
@@ -60,11 +65,12 @@ type conn = {
 [@@deriving encoding]
 
 (**contains all the important information to calculate the base fee of the upcomping block*)
-type baseFee = {
+type block_header = {
   base_fee : string; [@key "baseFeePerGas"]
   gas_used : string; [@key "gasUsed"]
   timestamp : bint64; [@key "timestamp"]
   number : bint; [@key "number"]
+  fee_recepient : string; [@key "miner"]
 }
 [@@deriving encoding { ignore }]
 
@@ -79,7 +85,7 @@ type mined_tx = {
 type res_ws =
   | Mined_transaction of mined_tx
   | Pending_transaction of transaction
-  | Base_fee of baseFee
+  | Block_header of block_header
 [@@deriving encoding { ignore }]
 
 type 'a result = ('a[@wrap "result"]) [@@deriving encoding { ignore }]
@@ -91,4 +97,11 @@ type data = res_ws result params [@@deriving encoding { ignore }]
 type response =
   | Data of data
   | Connection of conn
+[@@deriving encoding]
+
+type lifespans = {
+  mutable delta_pending_tx : int; [@key "delta_pending"]
+  mutable delta_account : int; [@key "delta_account"]
+  mutable delta_snapshot : int; [@key "delta_snapshot"]
+}
 [@@deriving encoding]

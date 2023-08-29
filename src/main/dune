@@ -21,4 +21,4 @@
  (wrapped false)
  (preprocess
   (pps lwt_ppx ppx_deriving_encoding ppx_deriving_arg))
- (libraries alchemy common version lwt_ppx lwt.unix))
+ (libraries api_server alchemy common version lwt_ppx lwt.unix))

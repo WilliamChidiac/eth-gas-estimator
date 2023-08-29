@@ -1,0 +1,8 @@
+(library
+ (public_name gas_estimator.server)
+ (name api_server)
+ (modules api_server)
+ (wrapped false)
+ (preprocess
+  (pps ppx_deriving_encoding ez_api.ppx_server ppx_deriving_arg))
+ (libraries common alchemy yojson))
