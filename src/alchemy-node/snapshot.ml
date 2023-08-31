@@ -123,10 +123,18 @@ let remove_snapshot key =
     Hashtbl.remove snap_shot.mempools x ;
     Hashtbl.remove snap_shot.stats x
 
-let print_local_stats stats =
+let print_local_stats ?(sort = true) stats =
   match stats with
   | None -> Format.eprintf "no stats for this block@."
   | Some stats ->
+    let compare_list =
+      if sort then
+        List.fast_sort
+          (fun (t1, _) (t2, _) ->
+            Utilities.compare_by_priority_fee stats.sts_base_fee t1 t2)
+          stats.sts_compare
+      else
+        stats.sts_compare in
     List.iter
       (fun (tx, b) ->
         Format.eprintf
@@ -143,7 +151,7 @@ let print_local_stats stats =
           (EzEncoding.construct b_enc tx.tx_hash)
           (print_in (calc_priority_fee stats.sts_base_fee tx))
           (Option.value ~default:(-1) tx.transaction_index))
-      stats.sts_compare ;
+      compare_list ;
     Format.eprintf
       "block number = %d \n\
        base fee = %s \n\
