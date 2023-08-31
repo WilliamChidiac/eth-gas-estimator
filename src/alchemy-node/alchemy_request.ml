@@ -49,8 +49,8 @@ let react _ s =
           Sorted_list.process_pending_tx t Sorted_list.mempool ;
           Lwt.return_unit
         | Mined_transaction t ->
-          Snapshot.snapshot_mined t.tx_tx ;
-          Sorted_list.remove_tx t.tx_tx Sorted_list.mempool ;
+          Sorted_list.remove_tx t.tx_tx Sorted_list.mempool
+          |> Snapshot.snapshot_mined t.tx_tx ;
           Lwt.return_unit
         | Block_header b ->
           Snapshot.erase_block () ;

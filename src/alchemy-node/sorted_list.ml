@@ -139,25 +139,24 @@ let process_pending_tx tx mempool =
     ) else
       add_tx tx mempool
 
-let inter = ref 0
-
-let total = ref 0
-
-(**[remove_tx tx mempool] used to remove a mined transaction from the mempool*)
+(**[remove_tx tx mempool] used to remove a mined transaction from the mempool
+  [return] :  [true] if the transaction was in the mempool
+  [false] otherwise*)
 let remove_tx tx mempool =
+  let removed = ref false in
   let rec rm_tx tx l =
     match l with
     | [] -> []
     | (transaction, age) :: subl ->
       if transaction.tx_nonce = tx.tx_nonce && transaction.from = tx.from then (
-        inter := !inter + 1 ;
-        rm_tx tx subl
+        removed := true ;
+        subl
       ) else
         (transaction, age) :: rm_tx tx subl in
   Mutex.lock mempool.mutex_pending ;
-  total := !total + 1 ;
   mempool.pending <- rm_tx tx mempool.pending ;
-  Mutex.unlock mempool.mutex_pending
+  Mutex.unlock mempool.mutex_pending ;
+  !removed
 
 (**[update_pending_age mempool] updates the age of the stored pending transaction
     if a transaction has reached it's maximum age, it is considered as invalid and 
@@ -195,8 +194,6 @@ let update_base_fee mempool (bf : block_header) =
 (**[update_mempool mempool bf] wrapper of all the update functions. 
     this function should be called every time a new block is published*)
 let update_mempool mempool (bf : block_header) =
-  total := 0 ;
-  inter := 0 ;
   update_base_fee mempool bf ;
   update_pending_age mempool ;
   update_blacklist_age mempool

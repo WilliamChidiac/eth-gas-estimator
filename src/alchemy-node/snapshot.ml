@@ -29,7 +29,8 @@ type snapshot = {
   blocks : (bint, transaction list) Hashtbl.t; [@key "accepted"]
   block_headers : (bint, block_header) Hashtbl.t; [@key "block_header"]
   stats : (bint, local_stats) Hashtbl.t; [@key "block_stats"]
-  mutable latest_block : transaction list; [@key "latest_accecpted"]
+  mutable latest_block : (transaction * bool) list; [@key "latest_accecpted"]
+  mutex_latest_block : Mutex.t;
 }
 
 let block_builders = Constant.block_bs
@@ -53,6 +54,7 @@ let snap_shot =
     block_headers = Hashtbl.create Constant.lifespan.delta_snapshot;
     stats = Hashtbl.create Constant.lifespan.delta_snapshot;
     latest_block = [];
+    mutex_latest_block = Mutex.create ();
   }
 
 let global =
@@ -71,7 +73,10 @@ let is_block_builder header =
 
 let erase_block () = snap_shot.latest_block <- []
 
-let snapshot_mined tx = snap_shot.latest_block <- tx :: snap_shot.latest_block
+let snapshot_mined tx in_mempool =
+  Mutex.lock snap_shot.mutex_latest_block ;
+  snap_shot.latest_block <- (tx, in_mempool) :: snap_shot.latest_block ;
+  Mutex.unlock snap_shot.mutex_latest_block
 
 let snapshot_stats_comp () =
   let accepted = snap_shot.latest_block in
