@@ -26,10 +26,9 @@ type overall_stats = {
 type snapshot = {
   mutable id : int; [@key "id"]
   mempools : (bint, transaction list) Hashtbl.t; [@key "mempool"]
-  blocks : (bint, transaction list) Hashtbl.t; [@key "accepted"]
-  block_headers : (bint, block_header) Hashtbl.t; [@key "block_header"]
   stats : (bint, local_stats) Hashtbl.t; [@key "block_stats"]
-  mutable latest_block : transaction list; [@key "latest_accecpted"]
+  mutable latest_block : (transaction * bool) list; [@key "latest_accecpted"]
+  mutex_latest_block : Mutex.t;
 }
 
 let block_builders = Constant.block_bs
@@ -49,10 +48,9 @@ let snap_shot =
   {
     id = 0;
     mempools = Hashtbl.create Constant.lifespan.delta_snapshot;
-    blocks = Hashtbl.create Constant.lifespan.delta_snapshot;
-    block_headers = Hashtbl.create Constant.lifespan.delta_snapshot;
     stats = Hashtbl.create Constant.lifespan.delta_snapshot;
     latest_block = [];
+    mutex_latest_block = Mutex.create ();
   }
 
 let global =
@@ -69,36 +67,12 @@ let is_block_builder header =
     |> fun _ -> true
   with Not_found -> false
 
-let erase_block () = snap_shot.latest_block <- []
+let snapshot_mined tx in_mempool =
+  Mutex.lock snap_shot.mutex_latest_block ;
+  snap_shot.latest_block <- (tx, in_mempool) :: snap_shot.latest_block ;
+  Mutex.unlock snap_shot.mutex_latest_block
 
-let snapshot_mined tx = snap_shot.latest_block <- tx :: snap_shot.latest_block
-
-let snapshot_stats_comp () =
-  let accepted = snap_shot.latest_block in
-  let pending = Hashtbl.find_opt snap_shot.mempools snap_shot.id in
-  match pending with
-  | None -> Format.eprintf "no pending transactions yet@."
-  | Some pending -> (
-    let stats = Hashtbl.find_opt snap_shot.stats snap_shot.id in
-    match stats with
-    | None -> Format.eprintf "no stats variable yet@."
-    | Some stats ->
-      let rec aux a =
-        match a with
-        | [] -> []
-        | e :: l ->
-          (if List.exists (fun p -> p.tx_hash = e.tx_hash) pending then
-             (e, true)
-           else
-             (e, false))
-          :: aux l in
-      stats.sts_compare <- aux accepted)
-
-let snapshot_block () =
-  Hashtbl.add snap_shot.blocks snap_shot.id snap_shot.latest_block ;
-  snapshot_stats_comp ()
-
-let snapshot_stats_block bh =
+let snapshot_stats_block_header bh =
   let sts = Hashtbl.find_opt snap_shot.stats snap_shot.id in
   match sts with
   | None -> ()
@@ -106,53 +80,61 @@ let snapshot_stats_block bh =
     stats.sts_is_mev <- is_block_builder bh ;
     stats.sts_block_number <- bh.number ;
     stats.sts_base_fee <- Z.of_string bh.base_fee ;
-    stats.sts_gas_used <- int_of_string bh.gas_used ;
-    stats.sts_intersection <- !Sorted_list.inter ;
-    stats.sts_block_length <- !Sorted_list.total ;
+    stats.sts_gas_used <- int_of_string bh.gas_used
+
+let snapshot_block bh =
+  snap_shot.id <- bh.number ;
+  let new_stats = init_stats () in
+  Hashtbl.add snap_shot.stats snap_shot.id new_stats ;
+  snapshot_stats_block_header bh ;
+  Mutex.lock snap_shot.mutex_latest_block ;
+  let rm_txs = List.map (fun x -> x) snap_shot.latest_block in
+  Mutex.unlock snap_shot.mutex_latest_block ;
+  match Hashtbl.find_opt snap_shot.stats (snap_shot.id - 1) with
+  | None -> ()
+  | Some stats ->
+    let rec update_stats = function
+      | [] -> (stats.sts_intersection, stats.sts_block_length)
+      | (_, is_in) :: sub ->
+        if is_in then stats.sts_intersection <- stats.sts_intersection + 1 ;
+        stats.sts_block_length <- stats.sts_block_length + 1 ;
+        update_stats sub in
+    stats.sts_compare <- rm_txs ;
+    let inter, total = update_stats snap_shot.latest_block in
     if stats.sts_is_mev then (
-      global.mev_total <- Z.(global.mev_total + Z.of_int !Sorted_list.total) ;
-      global.mev_intersection <-
-        Z.(global.mev_intersection + Z.of_int !Sorted_list.inter)
+      global.mev_total <- Z.(global.mev_total + Z.of_int total) ;
+      global.mev_intersection <- Z.(global.mev_intersection + Z.of_int inter)
     ) else (
-      global.normal_total <-
-        Z.(global.normal_total + Z.of_int !Sorted_list.total) ;
+      global.normal_total <- Z.(global.normal_total + Z.of_int total) ;
       global.normal_intersection <-
-        Z.(global.normal_intersection + Z.of_int !Sorted_list.inter)
-    )
-
-let snapshot_header bh =
-  Hashtbl.add snap_shot.block_headers snap_shot.id bh ;
-  snapshot_stats_block bh
-
-let incr_id () =
-  snap_shot.id <- (Hashtbl.find snap_shot.block_headers snap_shot.id).number + 1
+        Z.(global.normal_intersection + Z.of_int inter)
+    ) ;
+    snap_shot.latest_block <- []
 
 let snapshot_mempool pool =
   Hashtbl.add snap_shot.mempools snap_shot.id
     (List.fold_left (fun a (tx, _age) -> tx :: a) [] pool)
-
-let snapshot_state pool =
-  let stats = init_stats () in
-  snapshot_block () ;
-  incr_id () ;
-  snapshot_mempool pool ;
-  Hashtbl.add snap_shot.stats snap_shot.id stats
 
 let remove_snapshot key =
   let keys = Hashtbl.to_seq_keys snap_shot.stats in
   match Seq.find (fun b_num -> b_num < key) keys with
   | None -> ()
   | Some x ->
-    Hashtbl.remove snap_shot.block_headers x ;
-    Hashtbl.remove snap_shot.blocks x ;
     Hashtbl.remove snap_shot.mempools x ;
     Hashtbl.remove snap_shot.stats x
 
-let print_stats key =
-  let stats = Hashtbl.find_opt snap_shot.stats key in
+let print_local_stats ?(sort = true) stats =
   match stats with
-  | None -> ()
+  | None -> Format.eprintf "no stats for this block@."
   | Some stats ->
+    let compare_list =
+      if sort then
+        List.fast_sort
+          (fun (t1, _) (t2, _) ->
+            Utilities.compare_by_priority_fee stats.sts_base_fee t1 t2)
+          stats.sts_compare
+      else
+        stats.sts_compare in
     List.iter
       (fun (tx, b) ->
         Format.eprintf
@@ -169,7 +151,7 @@ let print_stats key =
           (EzEncoding.construct b_enc tx.tx_hash)
           (print_in (calc_priority_fee stats.sts_base_fee tx))
           (Option.value ~default:(-1) tx.transaction_index))
-      stats.sts_compare ;
+      compare_list ;
     Format.eprintf
       "block number = %d \n\
        base fee = %s \n\
@@ -183,7 +165,6 @@ let print_stats key =
        intersection = %.2f %% \n\
        normal builder stats : \n\
        intersection = %.2f %% \n\
-       snapshot id = %d \n\
        @."
       stats.sts_block_number
       (print_in stats.sts_base_fee)
@@ -196,7 +177,8 @@ let print_stats key =
       (Z.to_float global.normal_intersection
       /. Z.to_float global.normal_total
       *. 100.)
-      key
+
+let print_stats key = Hashtbl.find_opt snap_shot.stats key |> print_local_stats
 
 let filter_stats () =
   if snap_shot.id > 1 then print_stats (snap_shot.id - 1) ;
