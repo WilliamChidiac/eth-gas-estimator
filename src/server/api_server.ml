@@ -85,43 +85,104 @@ let post_update_snapshot_delay _req updated_delay =
 
 let block_number = EzAPI.Param.int ~name:"block_number" "block_number"
 
-type no_stats = { error_message : string [@key "error"] } [@@deriving encoding]
+type no_data = { error_message : string [@key "error"] } [@@deriving encoding]
 
-type stats_resp =
-  | Valid of Snapshot.local_stats
-  | Error of no_stats
+type mempool = { tx_pool : Eth.transaction list [@key "mempool"] }
 [@@deriving encoding]
 
-(**[/get_stats_of_block?block_number=[int]]
-    GET request that takes a required a paramter [block_number].
-    [returns] a json of some stats captured during the snapshot dedicated to this block. 
-    if no paramter is passed or if a invalid parameter is passed, returns an error message.
-    *)
-let get_stats req () =
+type snapshot = {
+  tx_pool : Eth.transaction list; [@key "mempool"]
+  stats : Snapshot.local_stats; [@key "block_stats"]
+}
+[@@deriving encoding]
+
+type get_snap =
+  | Snapshots of snapshot
+  | Stats of Snapshot.local_stats
+  | Tx_pool of mempool
+  | Error of no_data
+[@@deriving encoding]
+
+let get_snapshot_of req hashtbl f =
   let id = EzAPI.Req.find_param block_number req in
-  EzAPIServer.return_ok
-    (match id with
+  match id with
+  | None -> Error { error_message = "required parameter missing: block_number" }
+  | Some x -> (
+    let x = int_of_string x in
+    match Hashtbl.find_opt hashtbl x with
     | None ->
-      Error { error_message = "required parameter missing: block_number" }
-    | Some x -> (
-      let x = int_of_string x in
-      match Hashtbl.find_opt Snapshot.snap_shot.stats x with
-      | None ->
-        if x < Snapshot.snap_shot.id then
-          Error
-            {
-              error_message =
-                "this block is to old to be in scope of the program";
-            }
-        else
-          Error { error_message = "this block has not been captured yet." }
-      | Some stats -> Valid stats))
+      if x < Snapshot.snap_shot.id then
+        Error
+          {
+            error_message = "this block is to old to be in scope of the program";
+          }
+      else
+        Error { error_message = "this block has not been captured yet." }
+    | Some data -> f data)
+
+(**[/get_stats_of_block?block_number=[int]]
+  GET request that takes a required a paramter [block_number].
+  [returns] a json of some stats captured during the snapshot dedicated to this block. 
+  if no paramter is passed or if a invalid parameter is passed, returns an error message.
+  *)
+let get_stats req () =
+  EzAPIServer.return_ok
+    (get_snapshot_of req Snapshot.snap_shot.stats (fun x -> Stats x))
 [@@get
   {
     path = "/get_stats_of_block";
-    output = stats_resp_enc;
+    output = get_snap_enc;
     params = [block_number];
     name = "get_stats_of_block";
+  }]
+
+(**[/get_mempool_at?block_number=[int]]
+  GET request that takes a required a paramter [block_number].
+  [returns] a json of the mempool that the block builder had when creating this block. 
+  if no paramter is passed or if a invalid parameter is passed, returns an error message.
+  *)
+let get_mempool req () =
+  EzAPIServer.return_ok
+    (get_snapshot_of req Snapshot.snap_shot.mempools (fun x ->
+         Tx_pool { tx_pool = x }))
+[@@get
+  {
+    path = "/get_mempool_at";
+    output = get_snap_enc;
+    params = [block_number];
+    name = "get_mempool_at";
+  }]
+
+(**[/get_snapshot?block_number=[int]]
+  GET request that takes a required a paramter [block_number].
+  [returns] a json thst merges the data returned by get_mempool_at and get_stats_of_block. 
+  if no paramter is passed or if a invalid parameter is passed, returns an error message.
+  *)
+let get_snapshot req () =
+  let res =
+    EzAPI.Req.find_param block_number req |> function
+    | None ->
+      Error { error_message = "required parameter missing: block_number" }
+    | Some id -> (
+      let id = int_of_string id in
+      let x, y =
+        ( Hashtbl.find_opt Snapshot.snap_shot.stats id,
+          Hashtbl.find_opt Snapshot.snap_shot.mempools id ) in
+      match (x, y) with
+      | Some stats, Some pool -> Snapshots { tx_pool = pool; stats }
+      | _, _ ->
+        if id < Snapshot.snap_shot.id then
+          Error { error_message = "this block is to old" }
+        else
+          Error { error_message = "this block has not been captured yet." })
+  in
+  EzAPIServer.return_ok res
+[@@get
+  {
+    path = "/get_snapshot";
+    output = get_snap_enc;
+    params = [block_number];
+    name = "get_snapshot";
   }]
 
 (**[/get_overall_stats] 
