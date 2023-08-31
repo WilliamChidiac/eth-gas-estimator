@@ -1,0 +1,36 @@
+(executable
+ (public_name gas_estimator.test)
+ (name test)
+ (modules test)
+ (preprocess
+  (pps lwt_ppx ppx_deriving_encoding ppx_deriving_arg))
+ (libraries
+  test_utilities
+  alcotest
+  alchemy
+  common
+  commands
+  efunc
+  lwt_ppx
+  lwt.unix
+  yojson
+  ez_api.ws_cohttp))
+
+(library
+ (public_name gas_estimator.testable)
+ (name test_utilities)
+ (modules testables test_values)
+ (wrapped false)
+ (preprocess
+  (pps lwt_ppx ppx_deriving_encoding ppx_deriving_arg))
+ (libraries
+  core
+  alcotest
+  alchemy
+  commands
+  common
+  efunc
+  lwt_ppx
+  lwt.unix
+  yojson
+  ez_api.ws_cohttp))

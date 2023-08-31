@@ -23,6 +23,7 @@ copy-binaries:
 	@mkdir -p $(BIN_DIR)
 	@rm -f $(BIN_DIR)/$(BINARY)
 	@cp -f $(BUILD_DIR)/src/main/main.exe $(BIN_DIR)/$(BINARY)
+	@cp -f $(BUILD_DIR)/test/test.exe $(BIN_DIR)/tests.exe
 
 format:
 	@$(BUILD) build @fmt --auto-promote 2> /dev/null || exit 0

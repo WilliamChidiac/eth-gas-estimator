@@ -26,6 +26,8 @@ depends: [
   "cohttp-lwt-unix"
   "yojson"
   "lwt_ssl"
+  "alcotest"
+  "core"
 
 ]
 build: [
